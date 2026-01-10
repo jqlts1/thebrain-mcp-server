@@ -43,7 +43,8 @@ def search_thoughts(query: str, n: int = 30) -> dict:
         query: 搜索关键词
         n: 返回结果数量，默认30
     """
-    return client.search(query, n)
+    results = client.search(query, n)
+    return {"results": results, "count": len(results) if isinstance(results, list) else 0}
 
 @mcp.tool()
 def get_thought(thought_id: str) -> dict:
@@ -166,16 +167,22 @@ def append_note(thought_id: str, content: str) -> str:
     return "笔记已追加"
 
 @mcp.tool()
-def list_metadata(category: str) -> Union[dict, str]:
+def list_metadata(category: str) -> dict:
     """列出 TheBrain 的元数据
     
     Args:
         category: 类别，可选: 'types', 'tags', 'pins'
     """
-    if category == 'types': return client.get_types()
-    if category == 'tags': return client.get_tags()
-    if category == 'pins': return client.get_pins()
-    return "无效的类别。请使用 'types', 'tags' 或 'pins'"
+    if category == 'types':
+        data = client.get_types()
+        return {"category": "types", "items": data, "count": len(data) if isinstance(data, list) else 0}
+    if category == 'tags':
+        data = client.get_tags()
+        return {"category": "tags", "items": data, "count": len(data) if isinstance(data, list) else 0}
+    if category == 'pins':
+        data = client.get_pins()
+        return {"category": "pins", "items": data, "count": len(data) if isinstance(data, list) else 0}
+    return {"error": "无效的类别。请使用 'types', 'tags' 或 'pins'"}
 
 @mcp.tool()
 def import_structure(parent_id: str, data: str) -> str:
