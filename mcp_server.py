@@ -35,16 +35,15 @@ auth_verifier = DebugTokenVerifier(
 mcp = FastMCP("TheBrain", auth=auth_verifier)
 client = TheBrainClient()
 
-# ========== n8n 兼容性说明 ==========
-# n8n 的 MCP 节点会传入额外参数 (sessionId, action, chatInput, toolCallId)
-# FastMCP 使用 pydantic extra="forbid"，会拒绝这些参数
-# 解决方案：为每个工具添加这些可选参数
+# ========== n8n 兼容性 ==========
+# n8n 的 MCP 节点会传入额外参数，我们接受但从 schema 中隐藏它们
+# 使用 exclude_args 让 AI 看不到这些参数
+N8N_COMPAT_ARGS = ["sessionId", "action", "chatInput", "toolCallId"]
 
-@mcp.tool()
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
 def search_thoughts(
     query: str, 
     n: int = 30,
-    # n8n 兼容参数
     sessionId: Optional[str] = None,
     action: Optional[str] = None,
     chatInput: Optional[str] = None,
@@ -59,7 +58,7 @@ def search_thoughts(
     results = client.search(query, n)
     return {"results": results, "count": len(results) if isinstance(results, list) else 0}
 
-@mcp.tool()
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
 def get_thought(
     thought_id: str,
     sessionId: Optional[str] = None,
@@ -74,7 +73,7 @@ def get_thought(
     """
     return client.get_thought(thought_id)
 
-@mcp.tool()
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
 def get_graph(
     thought_id: str, 
     siblings: bool = False,
@@ -91,7 +90,7 @@ def get_graph(
     """
     return client.get_graph(thought_id, siblings)
 
-@mcp.tool()
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
 def create_thought(
     name: str, 
     parent_id: Optional[str] = None, 
@@ -116,7 +115,7 @@ def create_thought(
         return client.create_thought(name, jump_id, 3, kind)
     return client.create_thought(name, kind=kind)
 
-@mcp.tool()
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
 def update_thought(
     thought_id: str, 
     name: Optional[str] = None, 
@@ -147,7 +146,7 @@ def update_thought(
     client.update_thought(thought_id, updates)
     return {"status": "ok", "message": "已更新"}
 
-@mcp.tool()
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
 def delete_thought(
     thought_id: str,
     sessionId: Optional[str] = None,
@@ -163,7 +162,7 @@ def delete_thought(
     client.delete_thought(thought_id)
     return {"status": "ok", "message": "已删除"}
 
-@mcp.tool()
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
 def create_link(
     thought_id_a: str, 
     thought_id_b: str, 
@@ -184,7 +183,7 @@ def create_link(
     """
     return client.create_link(thought_id_a, thought_id_b, relation, name)
 
-@mcp.tool()
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
 def delete_link(
     link_id: str,
     sessionId: Optional[str] = None,
@@ -200,7 +199,7 @@ def delete_link(
     client.delete_link(link_id)
     return {"status": "ok", "message": "链接已删除"}
 
-@mcp.tool()
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
 def get_note(
     thought_id: str, 
     format: str = "markdown",
@@ -217,7 +216,7 @@ def get_note(
     """
     return client.get_note(thought_id, format)
 
-@mcp.tool()
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
 def update_note(
     thought_id: str, 
     content: str,
@@ -235,7 +234,7 @@ def update_note(
     client.update_note(thought_id, content)
     return {"status": "ok", "message": "笔记已更新（覆盖）"}
 
-@mcp.tool()
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
 def append_note(
     thought_id: str, 
     content: str,
@@ -253,7 +252,7 @@ def append_note(
     client.append_note(thought_id, content)
     return {"status": "ok", "message": "笔记已追加"}
 
-@mcp.tool()
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
 def list_metadata(
     category: str,
     sessionId: Optional[str] = None,
@@ -277,7 +276,7 @@ def list_metadata(
         return {"category": "pins", "items": data, "count": len(data) if isinstance(data, list) else 0}
     return {"error": "无效的类别。请使用 'types', 'tags' 或 'pins'"}
 
-@mcp.tool()
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
 def import_structure(
     parent_id: str, 
     data: str,
