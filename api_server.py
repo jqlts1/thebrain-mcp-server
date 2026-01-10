@@ -1,8 +1,8 @@
 import sys
 import os
 from pathlib import Path
-from typing import Optional, List
-from fastapi import FastAPI, HTTPException, Depends
+from typing import Optional, List, Dict, Union, Any
+from fastapi import FastAPI, HTTPException, Depends, Body
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 
@@ -170,6 +170,14 @@ async def delete_thought(thought_id: str, authenticated: bool = Depends(verify_t
     client = get_client()
     client.delete_thought(thought_id)
     return {"status": "ok"}
+
+@app.post("/api/thoughts/{thought_id}/structure", tags=["想法"])
+async def create_structure(thought_id: str, data: Union[Dict, List, str] = Body(...), authenticated: bool = Depends(verify_token)):
+    """批量导入结构化想法 (JSON)"""
+    client = get_client()
+    client.create_structure(thought_id, data)
+    return {"status": "ok", "message": "Structure imported"}
+
 
 # ---------- 链接 ----------
 @app.post("/api/links", tags=["链接"])

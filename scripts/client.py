@@ -1,7 +1,7 @@
 import os
 import requests
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 
 def _find_project_root() -> Path:
     """向上查找包含 .env 或 .claude 目录的项目根目录"""
@@ -106,6 +106,7 @@ class TheBrainClient:
         if source_id:
             data["sourceThoughtId"] = source_id
             data["relation"] = relation
+        print(f"DEBUG: create_thought payload: {data}")
         return self._request("POST", f"/thoughts/{self.brain_id}", json=data)
 
     def update_thought(self, thought_id: str, updates: List[Dict]) -> None:
@@ -116,39 +117,15 @@ class TheBrainClient:
 
     def get_children(self, thought_id: str) -> List[Dict]:
         graph = self.get_graph(thought_id)
-        children = []
-        for link in graph.get("links", []):
-            if link.get("relation") == 1 and link.get("thoughtIdA") == thought_id:
-                tid = link.get("thoughtIdB")
-                for t in graph.get("thoughts", []):
-                    if t.get("id") == tid:
-                        children.append({"id": t["id"], "name": t.get("name")})
-                        break
-        return children
+        return graph.get("children", [])
 
     def get_parents(self, thought_id: str) -> List[Dict]:
         graph = self.get_graph(thought_id)
-        parents = []
-        for link in graph.get("links", []):
-            if link.get("relation") == 1 and link.get("thoughtIdB") == thought_id:
-                tid = link.get("thoughtIdA")
-                for t in graph.get("thoughts", []):
-                    if t.get("id") == tid:
-                        parents.append({"id": t["id"], "name": t.get("name")})
-                        break
-        return parents
+        return graph.get("parents", [])
 
     def get_jumps(self, thought_id: str) -> List[Dict]:
         graph = self.get_graph(thought_id)
-        jumps = []
-        for link in graph.get("links", []):
-            if link.get("relation") == 3:
-                tid = link.get("thoughtIdB") if link.get("thoughtIdA") == thought_id else link.get("thoughtIdA")
-                for t in graph.get("thoughts", []):
-                    if t.get("id") == tid:
-                        jumps.append({"id": t["id"], "name": t.get("name")})
-                        break
-        return jumps
+        return graph.get("jumps", [])
 
     def create_link(self, id_a: str, id_b: str, relation: int = 3,
                     name: str = None) -> Dict:
@@ -233,3 +210,52 @@ class TheBrainClient:
         if end_time:
             params["endTime"] = end_time
         return self._request("GET", f"/brains/{self.brain_id}/modifications", params=params) or []
+
+    def create_structure(self, parent_id: str, data: Union[Dict, List, str, int, float]) -> None:
+        """递归导入结构化数据，支持 List/Dict/Primitives"""
+        # Case 1: List -> iterate
+        if isinstance(data, list):
+            for item in data:
+                self.create_structure(parent_id, item)
+            return
+
+        if isinstance(data, (str, int, float)):
+             t = self.create_thought(str(data))
+             self.create_link(parent_id, t["id"], 1)
+             return
+
+        # Case 3: Dict -> create complex thought
+        if isinstance(data, dict):
+             # 1. Prepare creation args
+             name = data.get("name", "未命名")
+             kind = data.get("kind", 1)
+             
+             # Create thought (orphan first)
+             new_thought = self.create_thought(name, kind=kind)
+             new_id = new_thought["id"]
+             
+             # Link to parent explicitly
+             self.create_link(parent_id, new_id, 1)  # 1=Child relation (Parent->Child)
+             
+             # 2. Update properties
+             updates = []
+             if "label" in data:
+                 updates.append({"op": "replace", "path": "/label", "value": data["label"]})
+             if "color" in data:
+                 updates.append({"op": "replace", "path": "/foregroundColor", "value": data["color"]})
+             if "typeId" in data:
+                 updates.append({"op": "replace", "path": "/typeId", "value": data["typeId"]})
+             if "acType" in data:
+                 updates.append({"op": "replace", "path": "/acType", "value": data["acType"]})
+             
+             if updates:
+                 self.update_thought(new_id, updates)
+                 
+             # 3. Update note
+             if "note" in data:
+                 self.update_note(new_id, data["note"])
+                 
+             # 4. Handle children recursively
+             children = data.get("children", [])
+             if children:
+                 self.create_structure(new_id, children)
