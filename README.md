@@ -130,6 +130,24 @@ curl -H "Authorization: Bearer YOUR_THEBRAIN_API_KEY" \
 
 ## MCP 集成
 
+### MCP 工具列表
+
+| 工具名 | 说明 | 必需参数 | 可选参数 |
+| :--- | :--- | :--- | :--- |
+| `search_thoughts` | 搜索想法 | `query` | `n` (默认30) |
+| `get_thought` | 获取想法详情 | `thought_id` | - |
+| `get_graph` | 获取想法的关联图谱 | `thought_id` | `siblings` (默认false) |
+| `create_thought` | 创建新想法 | `name` | `parent_id`, `jump_id`, `kind` |
+| `update_thought` | 更新想法属性 | `thought_id` | `name`, `label`, `color`, `type_id` |
+| `delete_thought` | 删除想法 | `thought_id` | - |
+| `create_link` | 创建链接 | `thought_id_a`, `thought_id_b` | `relation` (默认3=跳转), `name` |
+| `delete_link` | 删除链接 | `link_id` | - |
+| `get_note` | 获取笔记 | `thought_id` | `format` (默认markdown) |
+| `update_note` | 覆盖笔记 ⚠️ | `thought_id`, `content` | - |
+| `append_note` | 追加笔记 ✅ | `thought_id`, `content` | - |
+| `list_metadata` | 列出元数据 | `category` (types/tags/pins) | - |
+| `import_structure` | 导入结构化数据 | `parent_id`, `data` (JSON字符串) | - |
+
 ### Claude Desktop
 
 编辑 `~/Library/Application Support/Claude/claude_desktop_config.json`:
@@ -143,6 +161,15 @@ curl -H "Authorization: Bearer YOUR_THEBRAIN_API_KEY" \
   }
 }
 ```
+
+### n8n 集成
+
+在 n8n 中添加 MCP Client 节点，配置如下：
+
+- **Connection Type**: Streamable HTTP
+- **URL**: `http://localhost:8000/mcp/mcp`
+
+> **注意**: 确保所有工具参数都有明确的类型定义。如果遇到 `Cannot read properties of undefined (reading 'inputType')` 错误，请检查 MCP 服务器版本是否最新。
 
 > **传输协议**: 使用 **HTTP Streamable** 协议（推荐），支持高效双向通信
 
