@@ -1,5 +1,6 @@
 import sys
 import json
+import os
 from pathlib import Path
 from typing import Optional, Union, Dict, List
 
@@ -7,9 +8,31 @@ from typing import Optional, Union, Dict, List
 sys.path.append(str(Path(__file__).parent / "scripts"))
 
 from fastmcp import FastMCP
+from fastmcp.server.auth.providers.debug import DebugTokenVerifier
 from client import TheBrainClient
 
-mcp = FastMCP("TheBrain")
+# ========== MCP 认证 ==========
+def get_api_key() -> str:
+    """从环境变量获取 THEBRAIN_API_KEY"""
+    return os.getenv("THEBRAIN_API_KEY", "")
+
+def validate_bearer_token(token: str) -> bool:
+    """验证 Bearer Token（与 FastAPI 使用相同的 API Key）"""
+    expected_token = get_api_key()
+    if not expected_token:
+        # 如果没有设置 API Key，则不启用认证（开发模式）
+        return True
+    return token == expected_token
+
+# 创建认证验证器
+auth_verifier = DebugTokenVerifier(
+    validate=validate_bearer_token,
+    client_id="thebrain-mcp-client",
+    scopes=["read", "write"]
+)
+
+# 创建带认证的 MCP 服务器
+mcp = FastMCP("TheBrain", auth=auth_verifier)
 client = TheBrainClient()
 
 @mcp.tool()

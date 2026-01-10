@@ -148,6 +148,10 @@ curl -H "Authorization: Bearer YOUR_THEBRAIN_API_KEY" \
 | `list_metadata` | 列出元数据 | `category` (types/tags/pins) | - |
 | `import_structure` | 导入结构化数据 | `parent_id`, `data` (JSON字符串) | - |
 
+### MCP 认证
+
+> ⚠️ **新增**: MCP 服务器现在也支持 Bearer Token 认证，使用与 RESTful API 相同的 `THEBRAIN_API_KEY`。
+
 ### Claude Desktop
 
 编辑 `~/Library/Application Support/Claude/claude_desktop_config.json`:
@@ -156,7 +160,10 @@ curl -H "Authorization: Bearer YOUR_THEBRAIN_API_KEY" \
 {
   "mcpServers": {
     "thebrain": {
-      "url": "http://localhost:8000/mcp/mcp"
+      "url": "http://localhost:8000/mcp/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_THEBRAIN_API_KEY"
+      }
     }
   }
 }
@@ -168,6 +175,7 @@ curl -H "Authorization: Bearer YOUR_THEBRAIN_API_KEY" \
 
 - **Connection Type**: Streamable HTTP
 - **URL**: `http://localhost:8000/mcp/mcp`
+- **Authentication**: 在 Headers 中添加 `Authorization: Bearer YOUR_THEBRAIN_API_KEY`
 
 > **注意**: 确保所有工具参数都有明确的类型定义。如果遇到 `Cannot read properties of undefined (reading 'inputType')` 错误，请检查 MCP 服务器版本是否最新。
 
