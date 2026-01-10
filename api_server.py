@@ -64,20 +64,21 @@ class UrlAttachmentRequest(BaseModel):
     url: str
     name: Optional[str] = None
 
+# ========== 创建 MCP ASGI 应用 ==========
+# 先创建 MCP HTTP app（使用 Streamable HTTP 协议）
+mcp_app = mcp.http_app(path='/mcp')
+
 # ========== FastAPI 应用 ==========
+# 关键：必须传递 mcp_app.lifespan 给 FastAPI
 app = FastAPI(
     title="TheBrain API & MCP Server",
     description="TheBrain 知识图谱 RESTful API 和 MCP 服务器\n\n⚠️ **所有 /api/* 接口需要 Bearer Token 认证**",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=mcp_app.lifespan
 )
 
-# 挂载 MCP SSE 端点（不需要认证）
-mcp_sse_app = mcp.http_app(transport="sse")
-app.mount("/mcp/sse", mcp_sse_app)
-
-# 挂载 MCP HTTP Streamable 端点（不需要认证）
-mcp_streamable_app = mcp.http_app(transport="streamable-http")
-app.mount("/mcp/streamable", mcp_streamable_app)
+# 挂载 MCP 端点
+app.mount("/mcp", mcp_app)
 
 # 初始化客户端
 def get_client():
@@ -93,10 +94,7 @@ async def root():
     """获取服务状态"""
     return {
         "message": "TheBrain API & MCP Server is running",
-        "mcp_endpoints": {
-            "sse": "/mcp/sse",
-            "streamable": "/mcp/streamable"
-        },
+        "mcp_endpoint": "/mcp/mcp",
         "docs": "/docs"
     }
 
