@@ -5,6 +5,8 @@
 ## 特性
 
 - 🧠 **MCP 协议支持** - 可集成到 Claude Desktop、Cursor 等 AI 工具
+  - SSE (Server-Sent Events) 传输
+  - HTTP Streamable 传输
 - 🌐 **RESTful API** - 22 个完整的 HTTP 接口
 - 🔍 **增强搜索** - 丰富的返回字段，支持原始结果查询
 - 📌 **置顶管理** - 想法置顶/取消置顶
@@ -19,14 +21,17 @@
 ```bash
 # 1. 设置环境变量
 cp .env.example .env
-# 编辑 .env 填入您的 API Key 和 Brain ID
+# 编辑 .env 填入：
+# - THEBRAIN_API_KEY
+# - THEBRAIN_BRAIN_ID
 
 # 2. 启动服务
 docker-compose up -d
 
 # 3. 访问
 # API 文档: http://localhost:8000/docs
-# MCP 端点: http://localhost:8000/mcp/sse
+# MCP SSE: http://localhost:8000/mcp/sse
+# MCP Streamable: http://localhost:8000/mcp/streamable
 ```
 
 ### 本地开发
@@ -132,6 +137,7 @@ curl -H "Authorization: Bearer YOUR_THEBRAIN_API_KEY" \
 
 编辑 `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
+#### 使用 SSE (默认推荐)
 ```json
 {
   "mcpServers": {
@@ -141,6 +147,21 @@ curl -H "Authorization: Bearer YOUR_THEBRAIN_API_KEY" \
   }
 }
 ```
+
+#### 使用 HTTP Streamable
+```json
+{
+  "mcpServers": {
+    "thebrain": {
+      "url": "http://localhost:8000/mcp/streamable"
+    }
+  }
+}
+```
+
+> **协议说明**:
+> - **SSE (Server-Sent Events)** - 推荐用于大多数场景，连接稳定
+> - **HTTP Streamable** - 支持事件存储和断点续传，适合不稳定网络环境
 
 ## 技术栈
 

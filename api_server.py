@@ -72,8 +72,12 @@ app = FastAPI(
 )
 
 # 挂载 MCP SSE 端点（不需要认证）
-mcp_app = mcp.http_app(transport="sse")
-app.mount("/mcp", mcp_app)
+mcp_sse_app = mcp.http_app(transport="sse")
+app.mount("/mcp/sse", mcp_sse_app)
+
+# 挂载 MCP HTTP Streamable 端点（不需要认证）
+mcp_streamable_app = mcp.http_app(transport="streamable-http")
+app.mount("/mcp/streamable", mcp_streamable_app)
 
 # 初始化客户端
 def get_client():
@@ -89,7 +93,10 @@ async def root():
     """获取服务状态"""
     return {
         "message": "TheBrain API & MCP Server is running",
-        "mcp_endpoint": "/mcp/sse",
+        "mcp_endpoints": {
+            "sse": "/mcp/sse",
+            "streamable": "/mcp/streamable"
+        },
         "docs": "/docs"
     }
 
