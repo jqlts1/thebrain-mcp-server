@@ -1,7 +1,9 @@
 import sys
+import os
 from pathlib import Path
 from typing import Optional, List
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 
 # 添加 scripts 目录到路径
@@ -9,6 +11,27 @@ sys.path.append(str(Path(__file__).parent / "scripts"))
 
 from client import TheBrainClient
 from mcp_server import mcp
+
+# ========== 安全认证 ==========
+security = HTTPBearer()
+
+def get_api_key() -> str:
+    """从环境变量获取 THEBRAIN_API_KEY 用于认证"""
+    api_key = os.getenv("THEBRAIN_API_KEY")
+    if not api_key:
+        raise RuntimeError("THEBRAIN_API_KEY 未设置，请在 .env 中配置")
+    return api_key
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> bool:
+    """验证 Bearer Token（使用 THEBRAIN_API_KEY）"""
+    expected_token = get_api_key()
+    if credentials.credentials != expected_token:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return True
 
 # ========== Pydantic 模型 ==========
 class SearchRequest(BaseModel):
@@ -44,11 +67,11 @@ class UrlAttachmentRequest(BaseModel):
 # ========== FastAPI 应用 ==========
 app = FastAPI(
     title="TheBrain API & MCP Server",
-    description="TheBrain 知识图谱 RESTful API 和 MCP 服务器",
+    description="TheBrain 知识图谱 RESTful API 和 MCP 服务器\n\n⚠️ **所有 /api/* 接口需要 Bearer Token 认证**",
     version="1.0.0"
 )
 
-# 挂载 MCP SSE 端点
+# 挂载 MCP SSE 端点（不需要认证）
 mcp_app = mcp.http_app(transport="sse")
 app.mount("/mcp", mcp_app)
 
@@ -72,44 +95,44 @@ async def root():
 
 # ---------- 搜索 ----------
 @app.post("/api/search", tags=["搜索"])
-async def search_thoughts(request: SearchRequest):
+async def search_thoughts(request: SearchRequest, authenticated: bool = Depends(verify_token)):
     """搜索想法"""
     client = get_client()
     return client.search(request.query, request.max_results)
 
 # ---------- 想法 CRUD ----------
 @app.get("/api/thoughts/{thought_id}", tags=["想法"])
-async def get_thought(thought_id: str):
+async def get_thought(thought_id: str, authenticated: bool = Depends(verify_token)):
     """获取想法详情"""
     client = get_client()
     return client.get_thought(thought_id)
 
 @app.get("/api/thoughts/{thought_id}/graph", tags=["想法"])
-async def get_graph(thought_id: str, siblings: bool = False):
+async def get_graph(thought_id: str, siblings: bool = False, authenticated: bool = Depends(verify_token)):
     """获取想法的关联图谱"""
     client = get_client()
     return client.get_graph(thought_id, siblings)
 
 @app.get("/api/thoughts/{thought_id}/children", tags=["想法"])
-async def get_children(thought_id: str):
+async def get_children(thought_id: str, authenticated: bool = Depends(verify_token)):
     """获取子想法"""
     client = get_client()
     return client.get_children(thought_id)
 
 @app.get("/api/thoughts/{thought_id}/parents", tags=["想法"])
-async def get_parents(thought_id: str):
+async def get_parents(thought_id: str, authenticated: bool = Depends(verify_token)):
     """获取父想法"""
     client = get_client()
     return client.get_parents(thought_id)
 
 @app.get("/api/thoughts/{thought_id}/jumps", tags=["想法"])
-async def get_jumps(thought_id: str):
+async def get_jumps(thought_id: str, authenticated: bool = Depends(verify_token)):
     """获取跳转链接"""
     client = get_client()
     return client.get_jumps(thought_id)
 
 @app.post("/api/thoughts", tags=["想法"])
-async def create_thought(request: ThoughtCreateRequest):
+async def create_thought(request: ThoughtCreateRequest, authenticated: bool = Depends(verify_token)):
     """创建新想法"""
     client = get_client()
     if request.parent_id:
@@ -119,7 +142,7 @@ async def create_thought(request: ThoughtCreateRequest):
     return client.create_thought(request.name, kind=request.kind)
 
 @app.patch("/api/thoughts/{thought_id}", tags=["想法"])
-async def update_thought(thought_id: str, request: ThoughtUpdateRequest):
+async def update_thought(thought_id: str, request: ThoughtUpdateRequest, authenticated: bool = Depends(verify_token)):
     """更新想法"""
     client = get_client()
     updates = []
@@ -137,7 +160,7 @@ async def update_thought(thought_id: str, request: ThoughtUpdateRequest):
     return {"status": "ok"}
 
 @app.delete("/api/thoughts/{thought_id}", tags=["想法"])
-async def delete_thought(thought_id: str):
+async def delete_thought(thought_id: str, authenticated: bool = Depends(verify_token)):
     """删除想法"""
     client = get_client()
     client.delete_thought(thought_id)
@@ -145,13 +168,13 @@ async def delete_thought(thought_id: str):
 
 # ---------- 链接 ----------
 @app.post("/api/links", tags=["链接"])
-async def create_link(request: LinkRequest):
+async def create_link(request: LinkRequest, authenticated: bool = Depends(verify_token)):
     """创建链接"""
     client = get_client()
     return client.create_link(request.thought_id_a, request.thought_id_b, request.relation, request.name)
 
 @app.delete("/api/links/{link_id}", tags=["链接"])
-async def delete_link(link_id: str):
+async def delete_link(link_id: str, authenticated: bool = Depends(verify_token)):
     """删除链接"""
     client = get_client()
     client.delete_link(link_id)
@@ -159,13 +182,13 @@ async def delete_link(link_id: str):
 
 # ---------- 笔记 ----------
 @app.get("/api/thoughts/{thought_id}/note", tags=["笔记"])
-async def get_note(thought_id: str, format: str = "markdown"):
+async def get_note(thought_id: str, format: str = "markdown", authenticated: bool = Depends(verify_token)):
     """获取笔记 (format: markdown/html/text)"""
     client = get_client()
     return client.get_note(thought_id, format)
 
 @app.post("/api/thoughts/{thought_id}/note", tags=["笔记"])
-async def update_note(thought_id: str, request: NoteRequest):
+async def update_note(thought_id: str, request: NoteRequest, authenticated: bool = Depends(verify_token)):
     """更新或追加笔记"""
     client = get_client()
     if request.append:
@@ -176,32 +199,32 @@ async def update_note(thought_id: str, request: NoteRequest):
 
 # ---------- 元数据 ----------
 @app.get("/api/types", tags=["元数据"])
-async def get_types():
+async def get_types(authenticated: bool = Depends(verify_token)):
     """获取所有类型"""
     client = get_client()
     return client.get_types()
 
 @app.get("/api/tags", tags=["元数据"])
-async def get_tags():
+async def get_tags(authenticated: bool = Depends(verify_token)):
     """获取所有标签"""
     client = get_client()
     return client.get_tags()
 
 @app.get("/api/pins", tags=["元数据"])
-async def get_pins():
+async def get_pins(authenticated: bool = Depends(verify_token)):
     """获取置顶想法"""
     client = get_client()
     return client.get_pins()
 
 # ---------- 附件 ----------
 @app.get("/api/thoughts/{thought_id}/attachments", tags=["附件"])
-async def get_attachments(thought_id: str):
+async def get_attachments(thought_id: str, authenticated: bool = Depends(verify_token)):
     """获取附件列表"""
     client = get_client()
     return client.get_attachments(thought_id)
 
 @app.post("/api/thoughts/{thought_id}/attachments/url", tags=["附件"])
-async def add_url_attachment(thought_id: str, request: UrlAttachmentRequest):
+async def add_url_attachment(thought_id: str, request: UrlAttachmentRequest, authenticated: bool = Depends(verify_token)):
     """添加 URL 附件"""
     client = get_client()
     return client.add_url(thought_id, request.url, request.name)
@@ -215,14 +238,14 @@ class SearchRawRequest(BaseModel):
     only_names: bool = False
 
 @app.post("/api/search/raw", tags=["搜索"])
-async def search_raw(request: SearchRawRequest):
+async def search_raw(request: SearchRawRequest, authenticated: bool = Depends(verify_token)):
     """搜索想法，返回原始结果（含匹配上下文）"""
     client = get_client()
     return client.search_raw(request.query, request.max_results, request.only_names)
 
 # ---------- 按名称查找 ----------
 @app.get("/api/thoughts/by-name", tags=["想法"])
-async def get_thought_by_name(name: str):
+async def get_thought_by_name(name: str, authenticated: bool = Depends(verify_token)):
     """按名称精确查找想法"""
     client = get_client()
     result = client.get_thought_by_name(name)
@@ -232,14 +255,14 @@ async def get_thought_by_name(name: str):
 
 # ---------- 置顶操作 ----------
 @app.post("/api/thoughts/{thought_id}/pin", tags=["想法"])
-async def pin_thought(thought_id: str):
+async def pin_thought(thought_id: str, authenticated: bool = Depends(verify_token)):
     """置顶想法"""
     client = get_client()
     client.pin_thought(thought_id)
     return {"status": "ok"}
 
 @app.delete("/api/thoughts/{thought_id}/pin", tags=["想法"])
-async def unpin_thought(thought_id: str):
+async def unpin_thought(thought_id: str, authenticated: bool = Depends(verify_token)):
     """取消置顶"""
     client = get_client()
     client.unpin_thought(thought_id)
@@ -247,13 +270,13 @@ async def unpin_thought(thought_id: str):
 
 # ---------- 链接增强 ----------
 @app.get("/api/links/{link_id}", tags=["链接"])
-async def get_link_detail(link_id: str):
+async def get_link_detail(link_id: str, authenticated: bool = Depends(verify_token)):
     """获取链接详情"""
     client = get_client()
     return client.get_link(link_id)
 
 @app.get("/api/links/between/{thought_id_a}/{thought_id_b}", tags=["链接"])
-async def get_link_between(thought_id_a: str, thought_id_b: str):
+async def get_link_between(thought_id_a: str, thought_id_b: str, authenticated: bool = Depends(verify_token)):
     """获取两个想法之间的链接"""
     client = get_client()
     return client.get_link_between(thought_id_a, thought_id_b)
@@ -264,7 +287,7 @@ class LinkUpdateRequest(BaseModel):
     name: Optional[str] = None
 
 @app.patch("/api/links/{link_id}", tags=["链接"])
-async def update_link(link_id: str, request: LinkUpdateRequest):
+async def update_link(link_id: str, request: LinkUpdateRequest, authenticated: bool = Depends(verify_token)):
     """更新链接属性"""
     client = get_client()
     updates = []
@@ -281,13 +304,13 @@ async def update_link(link_id: str, request: LinkUpdateRequest):
 
 # ---------- 大脑统计 ----------
 @app.get("/api/brain/stats", tags=["大脑"])
-async def get_brain_stats():
+async def get_brain_stats(authenticated: bool = Depends(verify_token)):
     """获取大脑统计信息"""
     client = get_client()
     return client.get_brain_stats()
 
 @app.get("/api/brain/modifications", tags=["大脑"])
-async def get_brain_modifications(max_logs: int = 100, start_time: str = None, end_time: str = None):
+async def get_brain_modifications(max_logs: int = 100, start_time: str = None, end_time: str = None, authenticated: bool = Depends(verify_token)):
     """获取大脑修改日志"""
     client = get_client()
     return client.get_brain_modifications(max_logs, start_time, end_time)
