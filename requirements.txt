@@ -1,0 +1,11 @@
+# TheBrain MCP & API Server 依赖
+
+# FastMCP - 锁定在 3.0 之前避免破坏性更新
+fastmcp[fastapi]<3
+
+# Web 框架
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+
+# HTTP 客户端
+requests>=2.31.0
