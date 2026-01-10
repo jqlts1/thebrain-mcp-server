@@ -1,6 +1,7 @@
 import sys
 import json
 from pathlib import Path
+from typing import Optional, Union, Dict, List
 
 # 添加 scripts 目录到路径
 sys.path.append(str(Path(__file__).parent / "scripts"))
@@ -8,29 +9,48 @@ sys.path.append(str(Path(__file__).parent / "scripts"))
 from fastmcp import FastMCP
 from client import TheBrainClient
 
-from typing import Any
-
 mcp = FastMCP("TheBrain")
 client = TheBrainClient()
 
 @mcp.tool()
-def search_thoughts(query: str, n: int = 30, sessionId: str = "", action: str = "", chatInput: str = "", toolCallId: str = ""):
-    """搜索 TheBrain 中的想法 (Thoughts)"""
+def search_thoughts(query: str, n: int = 30) -> dict:
+    """搜索 TheBrain 中的想法 (Thoughts)
+    
+    Args:
+        query: 搜索关键词
+        n: 返回结果数量，默认30
+    """
     return client.search(query, n)
 
 @mcp.tool()
-def get_thought(thought_id: str, sessionId: str = "", action: str = "", chatInput: str = "", toolCallId: str = ""):
-    """获取指定想法的详细信息"""
+def get_thought(thought_id: str) -> dict:
+    """获取指定想法的详细信息
+    
+    Args:
+        thought_id: 想法的唯一ID
+    """
     return client.get_thought(thought_id)
 
 @mcp.tool()
-def get_graph(thought_id: str, siblings: bool = False, sessionId: str = "", action: str = "", chatInput: str = "", toolCallId: str = ""):
-    """获取想法的图谱关系（子、父、跳转等）"""
+def get_graph(thought_id: str, siblings: bool = False) -> dict:
+    """获取想法的图谱关系（子、父、跳转等）
+    
+    Args:
+        thought_id: 想法的唯一ID
+        siblings: 是否包含兄弟节点，默认False
+    """
     return client.get_graph(thought_id, siblings)
 
 @mcp.tool()
-def create_thought(name: str, parent_id: str = None, jump_id: str = None, kind: int = 1, sessionId: str = "", action: str = "", chatInput: str = "", toolCallId: str = ""):
-    """创建新想法。可以指定父想法或跳转连接。kind: 1=普通, 2=类型, 4=标签"""
+def create_thought(name: str, parent_id: Optional[str] = None, jump_id: Optional[str] = None, kind: int = 1) -> dict:
+    """创建新想法。可以指定父想法或跳转连接。
+    
+    Args:
+        name: 想法名称
+        parent_id: 父想法ID（可选）
+        jump_id: 跳转连接的想法ID（可选）
+        kind: 想法类型 - 1=普通, 2=类型, 4=标签
+    """
     if parent_id:
         return client.create_thought(name, parent_id, 1, kind)
     elif jump_id:
@@ -38,8 +58,16 @@ def create_thought(name: str, parent_id: str = None, jump_id: str = None, kind: 
     return client.create_thought(name, kind=kind)
 
 @mcp.tool()
-def update_thought(thought_id: str, name: str = None, label: str = None, color: str = None, type_id: str = None, sessionId: str = "", action: str = "", chatInput: str = "", toolCallId: str = ""):
-    """更新想法。支持更改名称、标签、颜色或类型。"""
+def update_thought(thought_id: str, name: Optional[str] = None, label: Optional[str] = None, color: Optional[str] = None, type_id: Optional[str] = None) -> str:
+    """更新想法。支持更改名称、标签、颜色或类型。
+    
+    Args:
+        thought_id: 想法的唯一ID
+        name: 新名称（可选）
+        label: 新标签（可选）
+        color: 新颜色（可选）
+        type_id: 新类型ID（可选）
+    """
     updates = []
     if name: updates.append({"op": "replace", "path": "/name", "value": name})
     if label: updates.append({"op": "replace", "path": "/label", "value": label})
@@ -51,58 +79,95 @@ def update_thought(thought_id: str, name: str = None, label: str = None, color: 
     return "已更新"
 
 @mcp.tool()
-def delete_thought(thought_id: str, sessionId: str = "", action: str = "", chatInput: str = "", toolCallId: str = ""):
-    """删除指定的想法"""
+def delete_thought(thought_id: str) -> str:
+    """删除指定的想法
+    
+    Args:
+        thought_id: 想法的唯一ID
+    """
     client.delete_thought(thought_id)
     return "已删除"
 
 @mcp.tool()
-def manage_link(thought_id_a: str, thought_id_b: str, relation: int = 3, name: str = None, action: str = "create", link_id: str = None, sessionId: str = "", chatInput: str = "", toolCallId: str = ""):
-    """管理想法之间的链接。action: 'create' 或 'delete'。relation: 1=子, 2=父, 3=跳转"""
-    if action == "delete":
-        if not link_id: return "删除链接需要 link_id"
-        client.delete_link(link_id)
-        return "链接已删除"
+def create_link(thought_id_a: str, thought_id_b: str, relation: int = 3, name: Optional[str] = None) -> dict:
+    """创建两个想法之间的链接
+    
+    Args:
+        thought_id_a: 第一个想法的ID
+        thought_id_b: 第二个想法的ID
+        relation: 关系类型 - 1=子, 2=父, 3=跳转
+        name: 链接名称（可选）
+    """
     return client.create_link(thought_id_a, thought_id_b, relation, name)
 
 @mcp.tool()
-def get_note(thought_id: str, format: str = "markdown", sessionId: str = "", action: str = "", chatInput: str = "", toolCallId: str = ""):
-    """获取想法的笔记内容"""
+def delete_link(link_id: str) -> str:
+    """删除想法之间的链接
+    
+    Args:
+        link_id: 链接的唯一ID
+    """
+    client.delete_link(link_id)
+    return "链接已删除"
+
+@mcp.tool()
+def get_note(thought_id: str, format: str = "markdown") -> dict:
+    """获取想法的笔记内容
+    
+    Args:
+        thought_id: 想法的唯一ID
+        format: 输出格式，默认markdown
+    """
     return client.get_note(thought_id, format)
 
 @mcp.tool()
-def update_note(thought_id: str, content: str, sessionId: str = "", action: str = "", chatInput: str = "", toolCallId: str = ""):
-    """【警告：覆盖操作】更新想法的笔记。这会覆盖原有的所有笔记内容！"""
+def update_note(thought_id: str, content: str) -> str:
+    """【警告：覆盖操作】更新想法的笔记。这会覆盖原有的所有笔记内容！
+    
+    Args:
+        thought_id: 想法的唯一ID
+        content: 新的笔记内容
+    """
     client.update_note(thought_id, content)
     return "笔记已更新（覆盖）"
 
 @mcp.tool()
-def append_note(thought_id: str, content: str, sessionId: str = "", action: str = "", chatInput: str = "", toolCallId: str = ""):
-    """【推荐】追加笔记。将新内容追加到现有笔记的末尾，不会覆盖原有内容。"""
+def append_note(thought_id: str, content: str) -> str:
+    """【推荐】追加笔记。将新内容追加到现有笔记的末尾，不会覆盖原有内容。
+    
+    Args:
+        thought_id: 想法的唯一ID
+        content: 要追加的笔记内容
+    """
     client.append_note(thought_id, content)
     return "笔记已追加"
 
 @mcp.tool()
-def list_metadata(category: str, sessionId: str = "", action: str = "", chatInput: str = "", toolCallId: str = ""):
-    """列出 TheBrain 的元数据。category 可选: 'types', 'tags', 'pins'"""
+def list_metadata(category: str) -> Union[dict, str]:
+    """列出 TheBrain 的元数据
+    
+    Args:
+        category: 类别，可选: 'types', 'tags', 'pins'
+    """
     if category == 'types': return client.get_types()
     if category == 'tags': return client.get_tags()
-    if category == 'pins': return client.get_pins()
     if category == 'pins': return client.get_pins()
     return "无效的类别。请使用 'types', 'tags' 或 'pins'"
 
 @mcp.tool()
-def import_structure(parent_id: str, data: Any, sessionId: str = "", action: str = "", chatInput: str = "", toolCallId: str = ""):
-    """导入结构化数据。data 可以是 JSON 对象、列表或 JSON 字符串。
-    格式示例: {"name": "Root", "children": ["Child1", {"name": "Child2"}]}
-    """
-    if isinstance(data, str):
-        try:
-            data = json.loads(data)
-        except json.JSONDecodeError:
-            return f"JSON 解析失败: {data[:100]}..."
+def import_structure(parent_id: str, data: str) -> str:
+    """导入结构化数据。data 应为 JSON 字符串。
     
-    client.create_structure(parent_id, data)
+    Args:
+        parent_id: 父想法的ID
+        data: JSON字符串格式的结构数据，例如: {"name": "Root", "children": ["Child1", {"name": "Child2"}]}
+    """
+    try:
+        parsed_data = json.loads(data)
+    except json.JSONDecodeError:
+        return f"JSON 解析失败: {data[:100]}..."
+    
+    client.create_structure(parent_id, parsed_data)
     return "结构化导入完成"
 
 
@@ -114,8 +179,12 @@ def get_thought_resource(id: str) -> str:
     return f"# {thought.get('name')}\n\n{note.get('markdown', '')}"
 
 @mcp.prompt()
-def summarize_thought(thought_id: str, sessionId: str = "", chatInput: str = "", toolCallId: str = ""):
-    """生成一个用于总结特定想法的提示词"""
+def summarize_thought(thought_id: str) -> str:
+    """生成一个用于总结特定想法的提示词
+    
+    Args:
+        thought_id: 想法的唯一ID
+    """
     return f"请帮我总结一下这个想法的内容：thought://{thought_id}"
 
 if __name__ == "__main__":
