@@ -356,8 +356,27 @@ async def get_context(thought_id: str, authenticated: bool = Depends(verify_toke
     client = get_client()
     return client.get_context(thought_id)
 
+@app.get("/api/thoughts/recent", tags=["想法"])
+async def recent_thoughts(days: int = 7, max_results: int = 20, authenticated: bool = Depends(verify_token)):
+    """获取最近修改的想法"""
+    client = get_client()
+    results = client.recent_thoughts(days, max_results)
+    return {"results": results, "count": len(results), "days": days}
+
+class FindRelatedRequest(BaseModel):
+    keywords: List[str]
+    max_results: int = 10
+
+@app.post("/api/search/related", tags=["搜索"])
+async def find_related(request: FindRelatedRequest, authenticated: bool = Depends(verify_token)):
+    """根据多个关键词查找相关想法，按匹配度排序"""
+    client = get_client()
+    results = client.find_related(request.keywords, request.max_results)
+    return {"results": results, "count": len(results), "keywords": request.keywords}
+
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
 

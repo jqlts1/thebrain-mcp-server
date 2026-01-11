@@ -433,3 +433,98 @@ class TheBrainClient:
         }
         
         return context
+
+    def recent_thoughts(self, days: int = 7, max_results: int = 20) -> List[Dict]:
+        """获取最近修改的想法
+        
+        Args:
+            days: 查询最近多少天，默认7天
+            max_results: 最大结果数，默认20
+        """
+        from datetime import datetime, timedelta
+        
+        # 计算开始时间
+        start_time = (datetime.utcnow() - timedelta(days=days)).isoformat() + "Z"
+        
+        # 获取修改日志
+        modifications = self.get_brain_modifications(max_logs=max_results * 5, start_time=start_time)
+        
+        # 提取想法ID并去重
+        # 修改日志结构: sourceType=2 表示 Thought，extraAId/sourceId 包含想法ID
+        seen_ids = set()
+        results = []
+        
+        for mod in modifications:
+            # extraAType=2 表示这是一个想法相关的修改
+            # sourceType=2 也表示想法
+            thought_id = None
+            if mod.get("extraAType") == 2:
+                thought_id = mod.get("extraAId")
+            elif mod.get("sourceType") == 2:
+                thought_id = mod.get("sourceId")
+            
+            # 跳过无效ID
+            if not thought_id or thought_id == "00000000-0000-0000-0000-000000000000":
+                continue
+            if thought_id in seen_ids:
+                continue
+            seen_ids.add(thought_id)
+            
+            try:
+                thought = self.get_thought(thought_id)
+                results.append({
+                    "id": thought.get("id"),
+                    "name": thought.get("name"),
+                    "kind": thought.get("kind"),
+                    "modifiedAt": thought.get("modificationDateTime"),
+                    "modType": mod.get("modType")
+                })
+            except:
+                continue
+            
+            if len(results) >= max_results:
+                break
+        
+        return results
+
+    def find_related(self, keywords: List[str], max_results: int = 10) -> List[Dict]:
+        """根据多个关键词查找相关想法，按匹配度排序
+        
+        Args:
+            keywords: 关键词列表
+            max_results: 最大结果数，默认10
+        """
+        all_results = {}
+        
+        for keyword in keywords:
+            if not keyword.strip():
+                continue
+            results = self.search(keyword.strip(), max_results=max_results * 2)
+            
+            for r in results:
+                thought_id = r.get("id")
+                if not thought_id:
+                    continue
+                    
+                if thought_id in all_results:
+                    all_results[thought_id]["score"] += 1
+                    all_results[thought_id]["matched_keywords"].append(keyword)
+                else:
+                    all_results[thought_id] = {
+                        "id": thought_id,
+                        "name": r.get("name"),
+                        "kind": r.get("kind"),
+                        "typeId": r.get("typeId"),
+                        "score": 1,
+                        "matched_keywords": [keyword]
+                    }
+        
+        # 按匹配分数排序（匹配更多关键词的排前面）
+        sorted_results = sorted(
+            all_results.values(), 
+            key=lambda x: x["score"], 
+            reverse=True
+        )
+        
+        return sorted_results[:max_results]
+

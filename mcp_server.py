@@ -359,6 +359,43 @@ def get_context(
     """
     return client.get_context(thought_id)
 
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
+def recent_thoughts(
+    days: int = 7,
+    max_results: int = 20,
+    sessionId: Optional[str] = None,
+    action: Optional[str] = None,
+    chatInput: Optional[str] = None,
+    toolCallId: Optional[str] = None
+) -> dict:
+    """获取最近修改的想法，了解知识库的最新动态
+    
+    Args:
+        days: 查询最近多少天，默认7天
+        max_results: 最大结果数，默认20
+    """
+    results = client.recent_thoughts(days, max_results)
+    return {"results": results, "count": len(results), "days": days}
+
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
+def find_related(
+    keywords: str,
+    max_results: int = 10,
+    sessionId: Optional[str] = None,
+    action: Optional[str] = None,
+    chatInput: Optional[str] = None,
+    toolCallId: Optional[str] = None
+) -> dict:
+    """根据多个关键词查找相关想法，按匹配度排序
+    
+    Args:
+        keywords: 关键词，多个关键词用逗号分隔（如："AI,机器学习,自动化"）
+        max_results: 最大结果数，默认10
+    """
+    keyword_list = [k.strip() for k in keywords.split(",") if k.strip()]
+    results = client.find_related(keyword_list, max_results)
+    return {"results": results, "count": len(results), "keywords": keyword_list}
+
 
 @mcp.resource("thought://{id}")
 def get_thought_resource(id: str) -> str:
