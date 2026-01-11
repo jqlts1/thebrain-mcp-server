@@ -68,6 +68,8 @@ curl -H "Authorization: Bearer YOUR_THEBRAIN_API_KEY" \
 | :--- | :--- | :--- | :--- |
 | `/api/search` | POST | 搜索想法（增强字段） | `query`, `max_results` |
 | `/api/search/raw` | POST | 原始搜索结果（含匹配上下文） | `query`, `max_results`, `only_names` |
+| `/api/search/by-type` | POST | 按类型/标签过滤搜索 🆕 | `query`, `type_id`, `tag_id`, `max_results` |
+| `/api/search/related` | POST | 多关键词相关性搜索 🆕 | `keywords` (List), `max_results` |
 
 #### 想法操作
 
@@ -84,6 +86,9 @@ curl -H "Authorization: Bearer YOUR_THEBRAIN_API_KEY" \
 | `/api/thoughts/{id}` | DELETE | 删除想法 | `id` |
 | `/api/thoughts/{id}/pin` | POST | 置顶想法 | `id` |
 | `/api/thoughts/{id}/pin` | DELETE | 取消置顶 | `id` |
+| `/api/thoughts/{id}/context` | GET | 获取完整上下文 🆕 | `id` |
+| `/api/thoughts/{id}/neighbors` | GET | 多层级邻居探索 🆕 | `id`, `depth`, `include_notes` |
+| `/api/thoughts/recent` | GET | 获取最近修改的想法 🆕 | `days`, `max_results` |
 
 #### 链接操作
 
@@ -124,7 +129,7 @@ curl -H "Authorization: Bearer YOUR_THEBRAIN_API_KEY" \
 | `/api/brain/stats` | GET | 获取大脑统计信息 | 无 |
 | `/api/brain/modifications` | GET | 获取修改日志 | `max_logs`, `start_time`, `end_time` |
 
-**总计**: 22 个 RESTful API 接口
+**总计**: 27 个 RESTful API 接口
 
 查看完整文档和在线测试: http://localhost:8000/docs
 
@@ -150,8 +155,8 @@ curl -H "Authorization: Bearer YOUR_THEBRAIN_API_KEY" \
 | `search_by_type` | 按类型/标签过滤搜索 | - | `query`, `type_id`, `tag_id`, `max_results` |
 | `explore_neighbors` | 多层级探索邻居节点 | `thought_id` | `depth` (1-3,默认2), `include_notes` |
 | `get_context` | 获取完整上下文 | `thought_id` | - |
-| `recent_thoughts` | 获取最近修改的想法 🆕 | - | `days` (默认7), `max_results` (默认20) |
-| `find_related` | 按关键词查找相关想法 🆕 | `keywords` (逗号分隔) | `max_results` (默认10) |
+| `recent_thoughts` | 获取最近修改的想法 | - | `days` (默认7), `max_results` (默认20) |
+| `find_related` | 按关键词查找相关想法 | `keywords` (逗号分隔) | `max_results` (默认10) |
 
 
 ### MCP 认证
