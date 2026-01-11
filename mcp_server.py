@@ -300,6 +300,66 @@ def import_structure(
     return {"status": "ok", "message": "结构化导入完成"}
 
 
+# ========== 知识管理增强工具 ==========
+
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
+def search_by_type(
+    query: str = "",
+    type_id: Optional[str] = None,
+    tag_id: Optional[str] = None,
+    max_results: int = 30,
+    sessionId: Optional[str] = None,
+    action: Optional[str] = None,
+    chatInput: Optional[str] = None,
+    toolCallId: Optional[str] = None
+) -> dict:
+    """按类型或标签过滤搜索想法
+    
+    Args:
+        query: 搜索关键词（可选，为空则只按类型/标签过滤）
+        type_id: 类型ID，可通过 list_metadata('types') 获取
+        tag_id: 标签ID，可通过 list_metadata('tags') 获取
+        max_results: 最大结果数，默认30
+    """
+    results = client.search_by_type(query, type_id, tag_id, max_results)
+    return {"results": results, "count": len(results)}
+
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
+def explore_neighbors(
+    thought_id: str,
+    depth: int = 2,
+    include_notes: bool = False,
+    sessionId: Optional[str] = None,
+    action: Optional[str] = None,
+    chatInput: Optional[str] = None,
+    toolCallId: Optional[str] = None
+) -> dict:
+    """多层级探索想法的邻居节点，发现知识关联
+    
+    Args:
+        thought_id: 起始想法的ID
+        depth: 探索深度（1-3层），默认2层
+        include_notes: 是否包含笔记摘要（仅第1层），默认False
+    """
+    result = client.explore_neighbors(thought_id, depth, include_notes)
+    return result
+
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
+def get_context(
+    thought_id: str,
+    sessionId: Optional[str] = None,
+    action: Optional[str] = None,
+    chatInput: Optional[str] = None,
+    toolCallId: Optional[str] = None
+) -> dict:
+    """获取想法的完整上下文（详情 + 笔记 + 所有关联节点）
+    
+    Args:
+        thought_id: 想法的ID
+    """
+    return client.get_context(thought_id)
+
+
 @mcp.resource("thought://{id}")
 def get_thought_resource(id: str) -> str:
     """以资源形式获取想法内容"""

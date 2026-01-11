@@ -329,6 +329,35 @@ async def get_brain_modifications(max_logs: int = 100, start_time: str = None, e
     return client.get_brain_modifications(max_logs, start_time, end_time)
 
 
+# ========== 知识管理增强 ==========
+
+class SearchByTypeRequest(BaseModel):
+    query: str = ""
+    type_id: Optional[str] = None
+    tag_id: Optional[str] = None
+    max_results: int = 30
+
+@app.post("/api/search/by-type", tags=["搜索"])
+async def search_by_type(request: SearchByTypeRequest, authenticated: bool = Depends(verify_token)):
+    """按类型或标签过滤搜索想法"""
+    client = get_client()
+    results = client.search_by_type(request.query, request.type_id, request.tag_id, request.max_results)
+    return {"results": results, "count": len(results)}
+
+@app.get("/api/thoughts/{thought_id}/neighbors", tags=["想法"])
+async def explore_neighbors(thought_id: str, depth: int = 2, include_notes: bool = False, authenticated: bool = Depends(verify_token)):
+    """多层级探索想法的邻居节点"""
+    client = get_client()
+    return client.explore_neighbors(thought_id, depth, include_notes)
+
+@app.get("/api/thoughts/{thought_id}/context", tags=["想法"])
+async def get_context(thought_id: str, authenticated: bool = Depends(verify_token)):
+    """获取想法的完整上下文（详情 + 笔记 + 所有关联节点）"""
+    client = get_client()
+    return client.get_context(thought_id)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+

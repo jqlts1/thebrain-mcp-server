@@ -147,6 +147,10 @@ curl -H "Authorization: Bearer YOUR_THEBRAIN_API_KEY" \
 | `append_note` | 追加笔记 ✅ | `thought_id`, `content` | - |
 | `list_metadata` | 列出元数据 | `category` (types/tags/pins) | - |
 | `import_structure` | 导入结构化数据 | `parent_id`, `data` (JSON字符串) | - |
+| `search_by_type` | 按类型/标签过滤搜索 🆕 | - | `query`, `type_id`, `tag_id`, `max_results` |
+| `explore_neighbors` | 多层级探索邻居节点 🆕 | `thought_id` | `depth` (1-3,默认2), `include_notes` |
+| `get_context` | 获取完整上下文 🆕 | `thought_id` | - |
+
 
 ### MCP 认证
 

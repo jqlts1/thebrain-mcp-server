@@ -259,3 +259,177 @@ class TheBrainClient:
              children = data.get("children", [])
              if children:
                  self.create_structure(new_id, children)
+
+    # ========== 知识管理增强方法 ==========
+
+    def search_by_type(self, query: str = "", type_id: str = None, tag_id: str = None, 
+                       max_results: int = 30) -> List[Dict]:
+        """按类型或标签过滤搜索
+        
+        Args:
+            query: 搜索关键词（可选，为空则只按类型/标签过滤）
+            type_id: 类型ID（可选）
+            tag_id: 标签ID（可选）
+            max_results: 最大结果数
+        """
+        # 先获取所有匹配的结果
+        if query:
+            results = self.search(query, max_results=max_results * 3)  # 获取更多结果用于过滤
+        else:
+            # 没有查询词时，获取该类型/标签下的所有想法
+            # 通过遍历类型/标签的子节点来实现
+            results = []
+            if type_id:
+                graph = self.get_graph(type_id)
+                # 类型的实例通常作为该类型节点的子节点或关联
+                for child in graph.get("children", []):
+                    child["_source"] = "type_child"
+                    results.append(child)
+            if tag_id:
+                graph = self.get_graph(tag_id)
+                for child in graph.get("children", []):
+                    child["_source"] = "tag_child"
+                    results.append(child)
+            return results[:max_results]
+        
+        # 过滤结果
+        filtered = []
+        for r in results:
+            # 按类型过滤
+            if type_id and r.get("typeId") != type_id:
+                continue
+            # 按标签过滤（需要检查想法是否有该标签）
+            if tag_id:
+                # 获取想法详情检查标签
+                try:
+                    graph = self.get_graph(r["id"])
+                    tag_ids = [t.get("id") for t in graph.get("tags", [])]
+                    if tag_id not in tag_ids:
+                        continue
+                except:
+                    continue
+            filtered.append(r)
+            if len(filtered) >= max_results:
+                break
+        
+        return filtered
+
+    def explore_neighbors(self, thought_id: str, depth: int = 2, 
+                          include_notes: bool = False) -> Dict:
+        """多层级探索想法的邻居节点
+        
+        Args:
+            thought_id: 起始想法ID
+            depth: 探索深度（1-3层，默认2层）
+            include_notes: 是否包含笔记摘要
+        """
+        depth = min(max(depth, 1), 3)  # 限制在 1-3 层
+        visited = set()
+        
+        def _explore(tid: str, current_depth: int) -> Dict:
+            if tid in visited or current_depth > depth:
+                return None
+            visited.add(tid)
+            
+            try:
+                graph = self.get_graph(tid, siblings=False)
+                thought = graph.get("activeThought", {})
+                
+                result = {
+                    "id": thought.get("id"),
+                    "name": thought.get("name"),
+                    "kind": thought.get("kind"),
+                    "typeId": thought.get("typeId"),
+                    "depth": current_depth
+                }
+                
+                # 添加笔记摘要
+                if include_notes and current_depth == 1:
+                    try:
+                        note = self.get_note(tid, "text")
+                        note_text = note.get("text", "") if note else ""
+                        result["note_preview"] = note_text[:200] + "..." if len(note_text) > 200 else note_text
+                    except:
+                        result["note_preview"] = ""
+                
+                # 递归探索子节点
+                if current_depth < depth:
+                    result["children"] = []
+                    for child in graph.get("children", [])[:10]:  # 限制每层最多10个
+                        child_result = _explore(child.get("id"), current_depth + 1)
+                        if child_result:
+                            result["children"].append(child_result)
+                    
+                    result["parents"] = []
+                    for parent in graph.get("parents", [])[:5]:  # 父节点少一些
+                        parent_result = _explore(parent.get("id"), current_depth + 1)
+                        if parent_result:
+                            result["parents"].append(parent_result)
+                    
+                    result["jumps"] = []
+                    for jump in graph.get("jumps", [])[:5]:  # 跳跃节点少一些
+                        jump_result = _explore(jump.get("id"), current_depth + 1)
+                        if jump_result:
+                            result["jumps"].append(jump_result)
+                
+                return result
+            except Exception as e:
+                return {"id": tid, "error": str(e)}
+        
+        return _explore(thought_id, 1)
+
+    def get_context(self, thought_id: str) -> Dict:
+        """获取想法的完整上下文（详情 + 笔记 + 关联节点摘要）
+        
+        Args:
+            thought_id: 想法ID
+        """
+        # 1. 获取图谱（包含想法详情和所有关联）
+        graph = self.get_graph(thought_id, siblings=True)
+        thought = graph.get("activeThought", {})
+        
+        # 2. 获取笔记
+        try:
+            note = self.get_note(thought_id, "markdown")
+            note_content = note.get("markdown", "") if note else ""
+        except:
+            note_content = ""
+        
+        # 3. 简化关联节点信息
+        def simplify_thoughts(thoughts: List[Dict]) -> List[Dict]:
+            return [{
+                "id": t.get("id"),
+                "name": t.get("name"),
+                "kind": t.get("kind")
+            } for t in thoughts]
+        
+        # 4. 组装完整上下文
+        context = {
+            "thought": {
+                "id": thought.get("id"),
+                "name": thought.get("name"),
+                "kind": thought.get("kind"),
+                "label": thought.get("label"),
+                "typeId": thought.get("typeId"),
+                "createdAt": thought.get("creationDateTime"),
+                "modifiedAt": thought.get("modificationDateTime"),
+            },
+            "note": note_content,
+            "relations": {
+                "parents": simplify_thoughts(graph.get("parents", [])),
+                "children": simplify_thoughts(graph.get("children", [])),
+                "jumps": simplify_thoughts(graph.get("jumps", [])),
+                "siblings": simplify_thoughts(graph.get("siblings", [])),
+                "tags": simplify_thoughts(graph.get("tags", [])),
+            },
+            "stats": {
+                "parent_count": len(graph.get("parents", [])),
+                "child_count": len(graph.get("children", [])),
+                "jump_count": len(graph.get("jumps", [])),
+                "sibling_count": len(graph.get("siblings", [])),
+                "tag_count": len(graph.get("tags", [])),
+                "attachment_count": len(graph.get("attachments", [])),
+            }
+        }
+        
+        return context
