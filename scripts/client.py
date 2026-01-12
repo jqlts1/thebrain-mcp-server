@@ -53,6 +53,62 @@ class TheBrainClient:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         })
+        self._type_cache = None  # 类型缓存
+
+    def _get_type_map(self) -> Dict[str, str]:
+        """获取类型ID到名称的映射(带缓存)"""
+        if self._type_cache is None:
+            types = self.get_types()
+            self._type_cache = {t['id']: t.get('name', 'Unknown') for t in types}
+        return self._type_cache
+
+    def _enrich_with_type_names(self, data: Any, fields: List[str] = None) -> Any:
+        """为数据添加 typeName 字段
+        
+        Args:
+            data: 要增强的数据(Dict, List 或其他)
+            fields: 要增强的字段列表,默认 ['typeId']
+        """
+        if fields is None:
+            fields = ['typeId']
+        
+        type_map = self._get_type_map()
+        
+        def _enrich_item(item: Dict) -> Dict:
+            """为单个字典项添加 typeName"""
+            if not isinstance(item, dict):
+                return item
+            for field in fields:
+                if field in item and item[field]:
+                    type_id = item[field]
+                    type_name = type_map.get(type_id)
+                    if type_name:
+                        # 将 typeId 转换为 typeName 字段名
+                        name_field = field.replace('Id', 'Name')
+                        item[name_field] = type_name
+            return item
+        
+        # 处理不同类型的数据
+        if isinstance(data, dict):
+            # 增强顶层字典
+            _enrich_item(data)
+            # 增强嵌套的 links 数组
+            if 'links' in data and isinstance(data['links'], list):
+                for link in data['links']:
+                    _enrich_item(link)
+            # 增强想法数组字段
+            for key in ['activeThought', 'parents', 'children', 'jumps', 'siblings', 'tags']:
+                if key in data:
+                    if isinstance(data[key], dict):
+                        _enrich_item(data[key])
+                    elif isinstance(data[key], list):
+                        for item in data[key]:
+                            _enrich_item(item)
+        elif isinstance(data, list):
+            for item in data:
+                _enrich_item(item)
+        
+        return data
 
     def _request(self, method: str, endpoint: str, **kwargs) -> Any:
         url = f"{self.base_url}{endpoint}"
@@ -97,8 +153,10 @@ class TheBrainClient:
         return self._request("GET", f"/thoughts/{self.brain_id}/{thought_id}")
 
     def get_graph(self, thought_id: str, siblings: bool = False) -> Dict:
-        return self._request("GET", f"/thoughts/{self.brain_id}/{thought_id}/graph",
+        graph = self._request("GET", f"/thoughts/{self.brain_id}/{thought_id}/graph",
                              params={"includeSiblings": siblings})
+        # 为图谱数据添加 typeName (包括 links 和 thoughts)
+        return self._enrich_with_type_names(graph)
 
     def create_thought(self, name: str, source_id: str = None,
                        relation: int = 1, kind: int = 1) -> Dict:
@@ -149,9 +207,63 @@ class TheBrainClient:
         self._request("POST", f"/notes/{self.brain_id}/{thought_id}/update",
                        json={"markdown": content})
 
-    def append_note(self, thought_id: str, content: str) -> None:
-        self._request("POST", f"/notes/{self.brain_id}/{thought_id}/append",
-                       json={"markdown": content})
+    def append_note(self, thought_id: str, content: str, position: str = "end") -> None:
+        """追加笔记内容
+        
+        Args:
+            thought_id: 想法ID
+            content: 要追加的内容
+            position: 插入位置，"end"(默认)追加到末尾，"start"插入到开头
+        """
+        if position == "start":
+            # 获取当前笔记并插入到开头
+            current = self.get_note(thought_id, "markdown")
+            current_text = current.get("markdown", "")
+            new_content = content + "\n\n" + current_text if current_text else content
+            self.update_note(thought_id, new_content)
+        else:
+            # 默认追加到末尾
+            self._request("POST", f"/notes/{self.brain_id}/{thought_id}/append",
+                           json={"markdown": content})
+
+    def batch_replace_note(self, thought_id: str, replacements: List[List[str]]) -> Dict:
+        """批量替换笔记内容
+        
+        Args:
+            thought_id: 想法ID
+            replacements: 替换对列表，格式 [["原内容1", "替换内容1"], ["原内容2", "替换内容2"]]
+        
+        Returns:
+            包含替换统计信息的字典
+        """
+        # 获取当前笔记
+        note = self.get_note(thought_id, "markdown")
+        content = note.get("markdown", "")
+        
+        if not content:
+            return {"replaced": 0, "patterns": 0, "error": "笔记为空"}
+        
+        # 批量替换
+        total_replacements = 0
+        patterns_matched = 0
+        
+        for old_text, new_text in replacements:
+            if old_text in content:
+                count = content.count(old_text)
+                content = content.replace(old_text, new_text)
+                total_replacements += count
+                patterns_matched += 1
+        
+        # 更新笔记
+        if total_replacements > 0:
+            self.update_note(thought_id, content)
+        
+        return {
+            "replaced": total_replacements,
+            "patterns": patterns_matched,
+            "total_patterns": len(replacements)
+        }
+
 
     def get_types(self) -> List[Dict]:
         return self._request("GET", f"/thoughts/{self.brain_id}/types")
@@ -320,7 +432,7 @@ class TheBrainClient:
         
         Args:
             thought_id: 起始想法ID
-            depth: 探索深度（1-3层，默认2层）
+            depth: 探索深度(1-3层,默认2层)
             include_notes: 是否包含笔记摘要
         """
         depth = min(max(depth, 1), 3)  # 限制在 1-3 层
@@ -340,6 +452,7 @@ class TheBrainClient:
                     "name": thought.get("name"),
                     "kind": thought.get("kind"),
                     "typeId": thought.get("typeId"),
+                    "typeName": thought.get("typeName"),  # 从增强后的 graph 获取
                     "depth": current_depth
                 }
                 
@@ -379,12 +492,12 @@ class TheBrainClient:
         return _explore(thought_id, 1)
 
     def get_context(self, thought_id: str) -> Dict:
-        """获取想法的完整上下文（详情 + 笔记 + 关联节点摘要）
+        """获取想法的完整上下文(详情 + 笔记 + 关联节点摘要)
         
         Args:
             thought_id: 想法ID
         """
-        # 1. 获取图谱（包含想法详情和所有关联）
+        # 1. 获取图谱(包含想法详情和所有关联,已自动增强 typeName)
         graph = self.get_graph(thought_id, siblings=True)
         thought = graph.get("activeThought", {})
         
@@ -395,12 +508,14 @@ class TheBrainClient:
         except:
             note_content = ""
         
-        # 3. 简化关联节点信息
+        # 3. 简化关联节点信息(保留 typeName)
         def simplify_thoughts(thoughts: List[Dict]) -> List[Dict]:
             return [{
                 "id": t.get("id"),
                 "name": t.get("name"),
-                "kind": t.get("kind")
+                "kind": t.get("kind"),
+                "typeId": t.get("typeId"),
+                "typeName": t.get("typeName")  # 添加类型名称
             } for t in thoughts]
         
         # 4. 组装完整上下文
@@ -411,6 +526,7 @@ class TheBrainClient:
                 "kind": thought.get("kind"),
                 "label": thought.get("label"),
                 "typeId": thought.get("typeId"),
+                "typeName": thought.get("typeName"),  # 添加类型名称
                 "createdAt": thought.get("creationDateTime"),
                 "modifiedAt": thought.get("modificationDateTime"),
             },

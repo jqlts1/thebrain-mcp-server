@@ -105,7 +105,8 @@ curl -H "Authorization: Bearer YOUR_THEBRAIN_API_KEY" \
 | 接口 | 方法 | 说明 | 主要参数 |
 | :--- | :--- | :--- | :--- |
 | `/api/thoughts/{id}/note` | GET | 获取笔记 | `id`, `format` (markdown/html/text) |
-| `/api/thoughts/{id}/note` | POST | 更新/追加笔记 | `id`, `content`, `append` |
+| `/api/thoughts/{id}/note` | POST | 更新/追加笔记 | `id`, `content`, `append`, `position` |
+| `/api/thoughts/{id}/note/batch-replace` | POST | 批量替换笔记 🆕 | `id`, `replacements` (List) |
 
 #### 元数据
 
@@ -129,7 +130,7 @@ curl -H "Authorization: Bearer YOUR_THEBRAIN_API_KEY" \
 | `/api/brain/stats` | GET | 获取大脑统计信息 | 无 |
 | `/api/brain/modifications` | GET | 获取修改日志 | `max_logs`, `start_time`, `end_time` |
 
-**总计**: 27 个 RESTful API 接口
+**总计**: 28 个 RESTful API 接口
 
 查看完整文档和在线测试: http://localhost:8000/docs
 
@@ -149,7 +150,8 @@ curl -H "Authorization: Bearer YOUR_THEBRAIN_API_KEY" \
 | `delete_link` | 删除链接 | `link_id` | - |
 | `get_note` | 获取笔记 | `thought_id` | `format` (默认markdown) |
 | `update_note` | 覆盖笔记 ⚠️ | `thought_id`, `content` | - |
-| `append_note` | 追加笔记 ✅ | `thought_id`, `content` | - |
+| `append_note` | 追加笔记 ✅ | `thought_id`, `content` | `position` (end/start, 默认end) |
+| `batch_replace_note` | 批量替换笔记 🆕 | `thought_id`, `replacements` (JSON) | - |
 | `list_metadata` | 列出元数据 | `category` (types/tags/pins) | - |
 | `import_structure` | 导入结构化数据 | `parent_id`, `data` (JSON字符串) | - |
 | `search_by_type` | 按类型/标签过滤搜索 | - | `query`, `type_id`, `tag_id`, `max_results` |

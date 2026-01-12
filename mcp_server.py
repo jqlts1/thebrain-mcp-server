@@ -238,19 +238,46 @@ def update_note(
 def append_note(
     thought_id: str, 
     content: str,
+    position: str = "end",
     sessionId: Optional[str] = None,
     action: Optional[str] = None,
     chatInput: Optional[str] = None,
     toolCallId: Optional[str] = None
 ) -> dict:
-    """【推荐】追加笔记。将新内容追加到现有笔记的末尾，不会覆盖原有内容。
+    """【推荐】追加笔记。可选择追加到末尾或插入到开头。
     
     Args:
         thought_id: 想法的唯一ID
         content: 要追加的笔记内容
+        position: 插入位置，"end"(默认)追加到末尾，"start"插入到开头
     """
-    client.append_note(thought_id, content)
-    return {"status": "ok", "message": "笔记已追加"}
+    client.append_note(thought_id, content, position)
+    return {"status": "ok", "message": f"笔记已追加到{position}", "position": position}
+
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
+def batch_replace_note(
+    thought_id: str,
+    replacements: str,
+    sessionId: Optional[str] = None,
+    action: Optional[str] = None,
+    chatInput: Optional[str] = None,
+    toolCallId: Optional[str] = None
+) -> dict:
+    """批量替换笔记内容，高效处理多个替换模式
+    
+    Args:
+        thought_id: 想法的唯一ID
+        replacements: JSON字符串格式的替换对，如: '[["旧文本1","新文本1"],["旧文本2","新文本2"]]'
+    """
+    import json
+    try:
+        replacement_list = json.loads(replacements)
+    except json.JSONDecodeError:
+        return {"status": "error", "message": "replacements 参数必须是有效的 JSON 数组"}
+    
+    result = client.batch_replace_note(thought_id, replacement_list)
+    return {"status": "ok", **result}
+
 
 @mcp.tool(exclude_args=N8N_COMPAT_ARGS)
 def list_metadata(

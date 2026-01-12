@@ -205,10 +205,23 @@ async def update_note(thought_id: str, request: NoteRequest, authenticated: bool
     """更新或追加笔记"""
     client = get_client()
     if request.append:
-        client.append_note(thought_id, request.content)
+        # 支持 position 参数（如果传递了的话）
+        position = getattr(request, 'position', 'end')
+        client.append_note(thought_id, request.content, position)
     else:
         client.update_note(thought_id, request.content)
     return {"status": "ok"}
+
+class BatchReplaceRequest(BaseModel):
+    replacements: List[List[str]]
+
+@app.post("/api/thoughts/{thought_id}/note/batch-replace", tags=["笔记"])
+async def batch_replace_note(thought_id: str, request: BatchReplaceRequest, authenticated: bool = Depends(verify_token)):
+    """批量替换笔记内容"""
+    client = get_client()
+    result = client.batch_replace_note(thought_id, request.replacements)
+    return result
+
 
 # ---------- 元数据 ----------
 @app.get("/api/types", tags=["元数据"])
