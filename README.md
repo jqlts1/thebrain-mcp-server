@@ -161,7 +161,148 @@ curl -H "Authorization: Bearer YOUR_THEBRAIN_API_KEY" \
 | `find_related` | 按关键词查找相关想法 | `keywords` (逗号分隔) | `max_results` (默认10) |
 
 
+### 🌟 高级工具使用指南
+
+以下工具专为知识发现和智能分析设计,推荐 AI 优先使用:
+
+#### 1. `get_graph` - 查看知识关系网络 ⭐
+
+**适用场景**: 了解一个想法的完整关联关系
+
+**返回内容**:
+- ✅ **自动包含 typeName** - 同时支持两种类型:
+  - **Thought.typeName** - 想法本身的类型(如"项目"、"任务"、"笔记")
+  - **Link.typeName** - 链接本身的类型(如"依赖关系"、"引用关系") ⭐
+- 想法的所有关联: parents(父节点)、children(子节点)、jumps(跳转链接)、siblings(兄弟节点)
+- **links 数组**: 包含所有链接的详细信息
+  - `typeId` / `typeName` - **链接的类型**(不是想法的类型)
+  - `relation` - 关系类型(1=Child, 2=Parent, 3=Jump, 4=Sibling)
+  - `color`, `thickness`, `name` 等属性
+- attachments(附件列表)
+
+**最佳实践**:
+```
+用户: "帮我分析一下 '项目A' 的知识结构"
+AI: 使用 get_graph 获取完整图谱
+    - 查看 activeThought.typeName 了解想法类型(如"项目")
+    - 查看 links[].typeName 了解每个链接的类型(如"依赖"、"引用")
+    - 查看 links[].relation 了解关系方向(父/子/跳转)
+```
+
+#### 2. `get_context` - 一站式获取完整信息 🎯
+
+**适用场景**: 需要全面了解一个想法时使用,比 get_graph 更高层
+
+**返回内容**:
+- 想法详情(包含 typeName)
+- 完整笔记内容(markdown 格式)
+- 所有关联节点分类汇总(每个节点都包含 typeName)
+- 统计信息(关联数量)
+
+**最佳实践**:
+```
+用户: "总结一下这个想法的所有内容"
+AI: 用 get_context 一次获取所有信息,无需多次调用
+```
+
+#### 3. `explore_neighbors` - 多层知识探索 🔍
+
+**适用场景**: 发现深层次的知识关联,适合"扩散式"思维导图
+
+**核心参数**:
+- `depth`: 探索深度 1-3 层(默认 2 层)
+- `include_notes`: 是否显示第一层的笔记预览
+
+**返回内容**:
+- 递归的层级结构
+- 每层节点都包含 typeName
+- 可选的笔记摘要
+
+**最佳实践**:
+```
+用户: "帮我找找这个想法相关的所有概念"
+AI: 使用 explore_neighbors(depth=3) 深入探索,发现间接关联
+```
+
+#### 4. `recent_thoughts` - 发现最新变化 ⏰
+
+**适用场景**: 了解用户最近在思考什么
+
+**核心参数**:
+- `days`: 最近几天(默认 7 天)
+- `max_results`: 返回数量(默认 20)
+
+**最佳实践**:
+```
+用户: "最近我都在研究什么?"
+AI: 用 recent_thoughts(days=7) 快速找到最近活跃的想法
+```
+
+#### 5. `find_related` - 多关键词智能匹配 🧠
+
+**适用场景**: 根据多个关键词找相关内容,自动按匹配度排序
+
+**特点**:
+- 匹配多个关键词的想法会排在前面
+- 返回匹配分数和匹配的关键词列表
+
+**最佳实践**:
+```
+用户: "找一下关于 'Python' 和 'API' 的内容"
+AI: 用 find_related(keywords="Python,API") 找到同时相关的想法
+```
+
+#### 6. `search_by_type` - 按类型精准过滤 🎨
+
+**适用场景**: 只想查看某种类型的想法
+
+**核心参数**:
+- `type_id`: 类型 ID(可选)
+- `tag_id`: 标签 ID(可选)
+- `query`: 搜索关键词(可选)
+
+**最佳实践**:
+```
+用户: "列出所有项目类型的想法"
+AI: 先用 list_metadata(category="types") 找到 "项目" 的 type_id
+    再用 search_by_type(type_id=xxx) 精准过滤
+```
+
+#### 7. `batch_replace_note` - 批量更新笔记 ✏️
+
+**适用场景**: 需要在笔记中批量替换文本
+
+**参数格式**:
+```json
+replacements: '[["旧文本1","新文本1"],["旧文本2","新文本2"]]'
+```
+
+**最佳实践**:
+```
+用户: "把所有笔记中的 'TODO' 改成 'DONE'"
+AI: 用 batch_replace_note 一次完成,返回替换统计
+```
+
+### 💡 组合使用技巧
+
+**场景1: 深入分析某个主题**
+1. `search_thoughts` 找到目标想法
+2. `get_context` 获取完整信息
+3. `explore_neighbors` 发现相关概念
+
+**场景2: 发现知识关联**
+1. `find_related` 根据多关键词找相关内容
+2. `get_graph` 查看每个想法的 links(包含 typeName)
+3. 分析 link 的 relation 和 typeName 理解关系类型
+
+**场景3: 类型化知识管理**
+1. `list_metadata(category="types")` 查看所有类型
+2. `search_by_type` 按类型筛选
+3. `get_graph` 查看想法时,links 和 thoughts 都会显示 typeName
+
+
 ### MCP 认证
+
 
 > ⚠️ **新增**: MCP 服务器现在也支持 Bearer Token 认证，使用与 RESTful API 相同的 `THEBRAIN_API_KEY`。
 
