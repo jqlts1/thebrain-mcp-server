@@ -58,8 +58,13 @@ class TheBrainClient:
     def _get_type_map(self) -> Dict[str, str]:
         """获取类型ID到名称的映射(带缓存)"""
         if self._type_cache is None:
-            types = self.get_types()
-            self._type_cache = {t['id']: t.get('name', 'Unknown') for t in types}
+            try:
+                types = self.get_types()
+                self._type_cache = {t['id']: t.get('name', 'Unknown') for t in types}
+            except Exception as e:
+                # 如果获取类型失败,使用空字典,不影响主功能
+                print(f"Warning: Failed to load types: {e}")
+                self._type_cache = {}
         return self._type_cache
 
     def _enrich_with_type_names(self, data: Any, fields: List[str] = None) -> Any:
