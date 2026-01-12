@@ -148,6 +148,7 @@ curl -H "Authorization: Bearer YOUR_THEBRAIN_API_KEY" \
 | `delete_thought` | 删除想法 | `thought_id` | - |
 | `create_link` | 创建链接 | `thought_id_a`, `thought_id_b` | `relation` (默认3=跳转), `name` |
 | `delete_link` | 删除链接 | `link_id` | - |
+| `get_link_between` | 获取两想法间的链接详情 🆕 | `thought_id_a`, `thought_id_b` | - |
 | `get_note` | 获取笔记 | `thought_id` | `format` (默认markdown) |
 | `update_note` | 覆盖笔记 ⚠️ | `thought_id`, `content` | - |
 | `append_note` | 追加笔记 ✅ | `thought_id`, `content` | `position` (end/start, 默认end) |
@@ -170,14 +171,14 @@ curl -H "Authorization: Bearer YOUR_THEBRAIN_API_KEY" \
 **适用场景**: 了解一个想法的完整关联关系
 
 **返回内容**:
-- ✅ **自动包含 typeName** - 同时支持两种类型:
-  - **Thought.typeName** - 想法本身的类型(如"项目"、"任务"、"笔记")
-  - **Link.typeName** - 链接本身的类型(如"依赖关系"、"引用关系") ⭐
+- ✅ **自动包含 typeName** - 想法会显示类型名称(如"项目"、"任务")
 - 想法的所有关联: parents(父节点)、children(子节点)、jumps(跳转链接)、siblings(兄弟节点)
-- **links 数组**: 包含所有链接的详细信息
-  - `typeId` / `typeName` - **链接的类型**(不是想法的类型)
-  - `relation` - 关系类型(1=Child, 2=Parent, 3=Jump, 4=Sibling)
-  - `color`, `thickness`, `name` 等属性
+- **links 数组**: 包含链接的基本信息(简化版)
+  - `relation` - 关系类型(1=Child, 2=Parent, 3=Jump, 4=Sibling) ⭐
+  - `meaning` - 链接语义(1=Normal, 2=InstanceOf, 5=HasTag 等) ⭐
+  - `thickness` - 链接粗细(-1=默认, 1-5=用户设置) ⭐
+  - `typeId` - 链接类型ID(⚠️ 无法获取类型名称)
+  - ❌ **不包含**: name(标签)、color(颜色)
 - attachments(附件列表)
 
 **最佳实践**:
@@ -185,11 +186,34 @@ curl -H "Authorization: Bearer YOUR_THEBRAIN_API_KEY" \
 用户: "帮我分析一下 '项目A' 的知识结构"
 AI: 使用 get_graph 获取完整图谱
     - 查看 activeThought.typeName 了解想法类型(如"项目")
-    - 查看 links[].typeName 了解每个链接的类型(如"依赖"、"引用")
-    - 查看 links[].relation 了解关系方向(父/子/跳转)
+    - 查看 links[].relation 了解关系方向(1=子,2=父,3=跳转,4=兄弟)
+    - 查看 links[].meaning 了解语义(1=普通,5=标签等)
+    - 查看 links[].thickness 识别重要链接(数值越大越重要)
+    - 如需查看链接的 name 和 color,使用 get_link_between
 ```
 
-#### 2. `get_context` - 一站式获取完整信息 🎯
+#### 2. `get_link_between` - 查看两节点间的链接详情 🆕
+
+**适用场景**: 需要查看链接的完整信息(name、color等)时使用
+
+**返回内容**:
+- ✅ `name` - 链接自定义标签
+- ✅ `color` - 链接颜色(如 '#ff7145')
+- ✅ `thickness` - 链接粗细
+- ✅ `relation` - 关系类型
+- ✅ `meaning` - 语义类型
+- ✅ `typeId` - 链接类型ID
+
+**最佳实践**:
+```
+用户: "这两个想法之间是什么关系?"
+AI: 使用 get_link_between(thought_id_a, thought_id_b)
+    - 查看 name 了解用户定义的关系标签
+    - 查看 color 了解可视化标记
+    - 查看 thickness 了解重要程度
+```
+
+#### 3. `get_context` - 一站式获取完整信息 🎯
 
 **适用场景**: 需要全面了解一个想法时使用,比 get_graph 更高层
 
@@ -205,7 +229,7 @@ AI: 使用 get_graph 获取完整图谱
 AI: 用 get_context 一次获取所有信息,无需多次调用
 ```
 
-#### 3. `explore_neighbors` - 多层知识探索 🔍
+#### 4. `explore_neighbors` - 多层知识探索 🔍
 
 **适用场景**: 发现深层次的知识关联,适合"扩散式"思维导图
 
@@ -224,7 +248,7 @@ AI: 用 get_context 一次获取所有信息,无需多次调用
 AI: 使用 explore_neighbors(depth=3) 深入探索,发现间接关联
 ```
 
-#### 4. `recent_thoughts` - 发现最新变化 ⏰
+#### 5. `recent_thoughts` - 发现最新变化 ⏰
 
 **适用场景**: 了解用户最近在思考什么
 
@@ -238,7 +262,7 @@ AI: 使用 explore_neighbors(depth=3) 深入探索,发现间接关联
 AI: 用 recent_thoughts(days=7) 快速找到最近活跃的想法
 ```
 
-#### 5. `find_related` - 多关键词智能匹配 🧠
+#### 6. `find_related` - 多关键词智能匹配 🧠
 
 **适用场景**: 根据多个关键词找相关内容,自动按匹配度排序
 
@@ -252,7 +276,7 @@ AI: 用 recent_thoughts(days=7) 快速找到最近活跃的想法
 AI: 用 find_related(keywords="Python,API") 找到同时相关的想法
 ```
 
-#### 6. `search_by_type` - 按类型精准过滤 🎨
+#### 7. `search_by_type` - 按类型精准过滤 🎨
 
 **适用场景**: 只想查看某种类型的想法
 
@@ -268,7 +292,7 @@ AI: 先用 list_metadata(category="types") 找到 "项目" 的 type_id
     再用 search_by_type(type_id=xxx) 精准过滤
 ```
 
-#### 7. `batch_replace_note` - 批量更新笔记 ✏️
+#### 8. `batch_replace_note` - 批量更新笔记 ✏️
 
 **适用场景**: 需要在笔记中批量替换文本
 
