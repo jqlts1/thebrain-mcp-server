@@ -196,21 +196,24 @@ AI: 使用 get_graph 获取完整图谱
 
 **适用场景**: 需要查看链接的完整信息(name、color等)时使用
 
+**核心参数**:
+- `detailed`: 是否返回详细信息,默认 False(简化版,更快速)
+
 **返回内容**:
-- ✅ `name` - 链接自定义标签
-- ✅ `color` - 链接颜色(如 '#ff7145')
-- ✅ `thickness` - 链接粗细
-- ✅ `relation` - 关系类型
-- ✅ `meaning` - 语义类型
-- ✅ `typeId` - 链接类型ID
+- **简化版**(默认): relation, meaning, thickness, name, color, typeId
+- **详细版**(detailed=True): 所有字段(包括 direction、创建时间等)
 
 **最佳实践**:
 ```
 用户: "这两个想法之间是什么关系?"
-AI: 使用 get_link_between(thought_id_a, thought_id_b)
+AI: 使用 get_link_between(thought_id_a, thought_id_b)  # 默认简化版,快速
     - 查看 name 了解用户定义的关系标签
     - 查看 color 了解可视化标记
     - 查看 thickness 了解重要程度
+    
+用户: "给我这个链接的所有详细信息"
+AI: 使用 get_link_between(thought_id_a, thought_id_b, detailed=True)
+    - 返回包含创建时间、修改时间、direction 等所有字段
 ```
 
 #### 3. `get_context` - 一站式获取完整信息 🎯

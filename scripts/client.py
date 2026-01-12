@@ -307,9 +307,33 @@ class TheBrainClient:
         """获取链接详情"""
         return self._request("GET", f"/links/{self.brain_id}/{link_id}")
 
-    def get_link_between(self, thought_id_a: str, thought_id_b: str) -> Dict:
-        """获取两个想法之间的链接"""
-        return self._request("GET", f"/links/{self.brain_id}/{thought_id_a}/{thought_id_b}")
+    def get_link_between(self, thought_id_a: str, thought_id_b: str, detailed: bool = False) -> Dict:
+        """获取两个想法之间的链接
+        
+        Args:
+            thought_id_a: 第一个想法ID
+            thought_id_b: 第二个想法ID
+            detailed: 是否返回详细信息,默认 False(简化版)
+        
+        Returns:
+            简化版包含: relation, meaning, thickness, name
+            详细版包含: 所有字段
+        """
+        link = self._request("GET", f"/links/{self.brain_id}/{thought_id_a}/{thought_id_b}")
+        
+        if not detailed and link:
+            # 简化版:只返回关键字段
+            return {
+                "id": link.get("id"),
+                "relation": link.get("relation"),
+                "meaning": link.get("meaning"),
+                "thickness": link.get("thickness"),
+                "name": link.get("name", ""),
+                "color": link.get("color"),
+                "typeId": link.get("typeId")
+            }
+        
+        return link
 
     def update_link(self, link_id: str, updates: List[Dict]) -> None:
         """更新链接属性 (使用 JSON Patch 格式)"""

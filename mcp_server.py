@@ -203,29 +203,33 @@ def delete_link(
 def get_link_between(
     thought_id_a: str,
     thought_id_b: str,
+    detailed: bool = False,
     sessionId: Optional[str] = None,
     action: Optional[str] = None,
     chatInput: Optional[str] = None,
     toolCallId: Optional[str] = None
 ) -> dict:
-    """获取两个想法之间的链接详情(包含 name、color 等完整信息)
+    """获取两个想法之间的链接详情
     
-    适用场景:需要查看两个节点间链接的详细信息时使用,比 get_graph 更专注
+    适用场景:需要查看两个节点间链接的信息时使用
     
     Args:
         thought_id_a: 第一个想法的ID
         thought_id_b: 第二个想法的ID
+        detailed: 是否返回详细信息,默认 False(简化版,只返回关键字段)
     
     Returns:
-        包含链接完整信息的字典:
-        - name: 链接自定义标签
-        - color: 链接颜色
-        - thickness: 链接粗细
-        - typeId: 链接类型ID
+        简化版(默认)包含:
         - relation: 关系类型
         - meaning: 语义类型
+        - thickness: 链接粗细
+        - name: 链接自定义标签
+        - color: 链接颜色
+        - typeId: 链接类型ID
+        
+        详细版(detailed=True)包含所有字段
     """
-    return client.get_link_between(thought_id_a, thought_id_b)
+    return client.get_link_between(thought_id_a, thought_id_b, detailed)
 
 @mcp.tool(exclude_args=N8N_COMPAT_ARGS)
 def get_note(
