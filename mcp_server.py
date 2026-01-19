@@ -456,6 +456,143 @@ def find_related(
     return {"results": results, "count": len(results), "keywords": keyword_list}
 
 
+# ========== SRS 间隔重复系统 ==========
+
+from srs.service import get_srs_service
+
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
+def srs_sync(
+    force_full: bool = False,
+    sessionId: Optional[str] = None,
+    action: Optional[str] = None,
+    chatInput: Optional[str] = None,
+    toolCallId: Optional[str] = None
+) -> dict:
+    """从 TheBrain 同步带 FlashCard 标签的节点到 SRS 系统
+    
+    Args:
+        force_full: 是否强制全量同步，默认 False（增量同步）
+    """
+    srs = get_srs_service()
+    return srs.sync(force_full)
+
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
+def srs_get_due_cards(
+    limit: int = 20,
+    sessionId: Optional[str] = None,
+    action: Optional[str] = None,
+    chatInput: Optional[str] = None,
+    toolCallId: Optional[str] = None
+) -> dict:
+    """获取今日到期需要复习的卡片
+    
+    Args:
+        limit: 最大返回数量，默认20
+    
+    Returns:
+        包含卡片列表和每张卡片的预估下次间隔
+    """
+    srs = get_srs_service()
+    cards = srs.get_due_cards(limit)
+    return {"cards": cards, "count": len(cards)}
+
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
+def srs_get_card(
+    thought_id: str,
+    sessionId: Optional[str] = None,
+    action: Optional[str] = None,
+    chatInput: Optional[str] = None,
+    toolCallId: Optional[str] = None
+) -> dict:
+    """获取单张卡片详情，包含笔记内容
+    
+    Args:
+        thought_id: TheBrain 节点 ID
+    """
+    srs = get_srs_service()
+    card = srs.get_card_detail(thought_id)
+    if not card:
+        return {"error": "卡片不存在"}
+    return card
+
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
+def srs_review(
+    thought_id: str,
+    quality: int,
+    sessionId: Optional[str] = None,
+    action: Optional[str] = None,
+    chatInput: Optional[str] = None,
+    toolCallId: Optional[str] = None
+) -> dict:
+    """提交复习结果，更新卡片的下次复习时间
+    
+    Args:
+        thought_id: TheBrain 节点 ID
+        quality: 评分 0-3
+            - 0 = Again (完全忘记，重新学习)
+            - 1 = Hard (记住但困难)
+            - 2 = Good (正常记住)
+            - 3 = Easy (轻松记住，大幅增加间隔)
+    """
+    if quality < 0 or quality > 3:
+        return {"success": False, "error": "quality 必须在 0-3 范围内"}
+    srs = get_srs_service()
+    return srs.review(thought_id, quality)
+
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
+def srs_stats(
+    sessionId: Optional[str] = None,
+    action: Optional[str] = None,
+    chatInput: Optional[str] = None,
+    toolCallId: Optional[str] = None
+) -> dict:
+    """获取 SRS 学习统计信息
+    
+    Returns:
+        - total_cards: 总卡片数
+        - new: 新卡片数
+        - learning: 学习中
+        - review: 复习中
+        - suspended: 已暂停
+        - due_today: 今日到期
+        - reviewed_today: 今日已复习
+    """
+    srs = get_srs_service()
+    return srs.get_stats()
+
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
+def srs_suspend(
+    thought_id: str,
+    sessionId: Optional[str] = None,
+    action: Optional[str] = None,
+    chatInput: Optional[str] = None,
+    toolCallId: Optional[str] = None
+) -> dict:
+    """暂停一张卡片，将其从复习队列中移除
+    
+    Args:
+        thought_id: TheBrain 节点 ID
+    """
+    srs = get_srs_service()
+    return srs.suspend(thought_id)
+
+@mcp.tool(exclude_args=N8N_COMPAT_ARGS)
+def srs_unsuspend(
+    thought_id: str,
+    sessionId: Optional[str] = None,
+    action: Optional[str] = None,
+    chatInput: Optional[str] = None,
+    toolCallId: Optional[str] = None
+) -> dict:
+    """恢复一张被暂停的卡片
+    
+    Args:
+        thought_id: TheBrain 节点 ID
+    """
+    srs = get_srs_service()
+    return srs.unsuspend(thought_id)
+
+
 @mcp.resource("thought://{id}")
 def get_thought_resource(id: str) -> str:
     """以资源形式获取想法内容"""
@@ -479,3 +616,4 @@ def summarize_thought(
 
 if __name__ == "__main__":
     mcp.run()
+

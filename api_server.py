@@ -388,8 +388,70 @@ async def find_related(request: FindRelatedRequest, authenticated: bool = Depend
     return {"results": results, "count": len(results), "keywords": request.keywords}
 
 
+# ========== SRS 间隔重复系统 ==========
+
+from srs.service import get_srs_service
+
+class SRSReviewRequest(BaseModel):
+    quality: int  # 0=Again, 1=Hard, 2=Good, 3=Easy
+
+@app.post("/api/srs/sync", tags=["SRS"])
+async def srs_sync(force_full: bool = False, authenticated: bool = Depends(verify_token)):
+    """从 TheBrain 同步带 FlashCard 标签的节点"""
+    srs = get_srs_service()
+    return srs.sync(force_full)
+
+@app.get("/api/srs/cards/due", tags=["SRS"])
+async def srs_get_due_cards(limit: int = 20, authenticated: bool = Depends(verify_token)):
+    """获取今日到期的卡片"""
+    srs = get_srs_service()
+    cards = srs.get_due_cards(limit)
+    return {"cards": cards, "count": len(cards)}
+
+@app.get("/api/srs/cards/{thought_id}", tags=["SRS"])
+async def srs_get_card(thought_id: str, authenticated: bool = Depends(verify_token)):
+    """获取卡片详情（含笔记）"""
+    srs = get_srs_service()
+    card = srs.get_card_detail(thought_id)
+    if not card:
+        raise HTTPException(status_code=404, detail="卡片不存在")
+    return card
+
+@app.post("/api/srs/cards/{thought_id}/review", tags=["SRS"])
+async def srs_review_card(thought_id: str, request: SRSReviewRequest, authenticated: bool = Depends(verify_token)):
+    """提交复习结果 (quality: 0=Again, 1=Hard, 2=Good, 3=Easy)"""
+    if request.quality < 0 or request.quality > 3:
+        raise HTTPException(status_code=400, detail="quality 必须在 0-3 范围内")
+    srs = get_srs_service()
+    return srs.review(thought_id, request.quality)
+
+@app.get("/api/srs/stats", tags=["SRS"])
+async def srs_get_stats(authenticated: bool = Depends(verify_token)):
+    """获取 SRS 统计信息"""
+    srs = get_srs_service()
+    return srs.get_stats()
+
+@app.post("/api/srs/cards/{thought_id}/suspend", tags=["SRS"])
+async def srs_suspend_card(thought_id: str, authenticated: bool = Depends(verify_token)):
+    """暂停卡片"""
+    srs = get_srs_service()
+    return srs.suspend(thought_id)
+
+@app.post("/api/srs/cards/{thought_id}/unsuspend", tags=["SRS"])
+async def srs_unsuspend_card(thought_id: str, authenticated: bool = Depends(verify_token)):
+    """恢复卡片"""
+    srs = get_srs_service()
+    return srs.unsuspend(thought_id)
+
+@app.get("/api/srs/cards", tags=["SRS"])
+async def srs_get_all_cards(authenticated: bool = Depends(verify_token)):
+    """获取所有卡片"""
+    srs = get_srs_service()
+    cards = srs.get_all_cards()
+    return {"cards": cards, "count": len(cards)}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
 
