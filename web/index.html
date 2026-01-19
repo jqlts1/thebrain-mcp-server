@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TheBrain SRS - 间隔重复学习</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 统计栏 -->
+        <header class="stats-bar">
+            <div class="stat">
+                <span class="stat-value" id="stat-new">0</span>
+                <span class="stat-label">新卡片</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="stat-due">0</span>
+                <span class="stat-label">待复习</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="stat-done">0</span>
+                <span class="stat-label">已完成</span>
+            </div>
+        </header>
+
+        <!-- 闪卡区域 -->
+        <main class="flashcard-area">
+            <div class="flashcard" id="flashcard">
+                <!-- 正面 -->
+                <div class="card-face card-front">
+                    <div class="card-content">
+                        <h1 class="card-title" id="card-title">加载中...</h1>
+                        <div class="card-tags" id="card-tags"></div>
+                        <div class="card-hint">点击卡片查看答案</div>
+                    </div>
+                </div>
+                
+                <!-- 背面 -->
+                <div class="card-face card-back">
+                    <div class="card-content">
+                        <h2 class="card-title-small" id="card-title-back"></h2>
+                        
+                        <!-- 大纲视图 -->
+                        <div class="outline-view" id="outline-view">
+                            <div class="outline-section outline-parents" id="outline-parents">
+                                <div class="outline-label">父节点</div>
+                                <div class="outline-nodes"></div>
+                            </div>
+                            <div class="outline-connector"></div>
+                            <div class="outline-section outline-siblings" id="outline-siblings">
+                                <div class="outline-nodes">
+                                    <div class="sibling-node" id="sibling-left"></div>
+                                    <div class="current-node" id="current-node"></div>
+                                    <div class="sibling-node" id="sibling-right"></div>
+                                </div>
+                            </div>
+                            <div class="outline-connector"></div>
+                            <div class="outline-section outline-children" id="outline-children">
+                                <div class="outline-label">子节点</div>
+                                <div class="outline-nodes"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- 笔记 -->
+                        <div class="card-note" id="card-note">
+                            <div class="note-label">📝 笔记</div>
+                            <div class="note-content" id="note-content"></div>
+                        </div>
+                        
+                        <!-- 元信息 -->
+                        <div class="card-meta" id="card-meta">
+                            <span class="meta-item" id="card-label"></span>
+                            <span class="meta-item" id="card-interval"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 完成提示 -->
+            <div class="completion-message" id="completion-message" style="display: none;">
+                <div class="completion-icon">🎉</div>
+                <h2>今日复习完成！</h2>
+                <p>你已完成所有待复习的卡片</p>
+            </div>
+        </main>
+
+        <!-- 评分按钮 -->
+        <footer class="rating-buttons" id="rating-buttons">
+            <button class="rating-btn rating-again" data-quality="0">
+                <span class="rating-name">Again</span>
+                <span class="rating-interval" id="interval-0">1d</span>
+            </button>
+            <button class="rating-btn rating-hard" data-quality="1">
+                <span class="rating-name">Hard</span>
+                <span class="rating-interval" id="interval-1">2d</span>
+            </button>
+            <button class="rating-btn rating-good" data-quality="2">
+                <span class="rating-name">Good</span>
+                <span class="rating-interval" id="interval-2">5d</span>
+            </button>
+            <button class="rating-btn rating-easy" data-quality="3">
+                <span class="rating-name">Easy</span>
+                <span class="rating-interval" id="interval-3">10d</span>
+            </button>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

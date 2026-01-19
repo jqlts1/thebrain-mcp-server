@@ -77,6 +77,22 @@ app = FastAPI(
     lifespan=mcp_app.lifespan
 )
 
+# ========== CORS 支持 ==========
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 允许所有来源，生产环境应限制
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ========== 静态文件 (Web 前端) ==========
+from fastapi.staticfiles import StaticFiles
+web_dir = Path(__file__).parent / "web"
+if web_dir.exists():
+    app.mount("/web", StaticFiles(directory=str(web_dir), html=True), name="web")
+
 # 挂载 MCP 端点
 app.mount("/mcp", mcp_app)
 
