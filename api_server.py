@@ -23,9 +23,19 @@ def get_api_key() -> str:
     return api_key
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) -> bool:
-    """验证 Bearer Token（使用 THEBRAIN_API_KEY）"""
-    expected_token = get_api_key()
-    if credentials.credentials != expected_token:
+    """验证 Bearer Token（支持 API Key 或 WEB_PASSWORD）"""
+    valid_tokens = {get_api_key()}
+    
+    # 支持自定义的 Web 访问密码
+    web_password = os.getenv("WEB_PASSWORD")
+    if web_password:
+        valid_tokens.add(web_password)
+    
+    # 默认支持 "123456" 作为简单密码（如果未设置 WEB_PASSWORD）
+    if not web_password:
+        valid_tokens.add("123456")
+
+    if credentials.credentials not in valid_tokens:
         raise HTTPException(
             status_code=401,
             detail="Invalid authentication credentials",
