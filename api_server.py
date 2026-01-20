@@ -99,12 +99,21 @@ app.add_middleware(
 
 # ========== 静态文件 (Web 前端) ==========
 from fastapi.staticfiles import StaticFiles
-web_dir = Path(__file__).parent / "web"
-if web_dir.exists():
-    app.mount("/web", StaticFiles(directory=str(web_dir), html=True), name="web")
+from fastapi.responses import FileResponse
 
-# 挂载 MCP 端点
+# 优先使用 Next.js 构建产物 (web-app/dist)，否则使用 web/ 目录
+nextjs_dist = Path(__file__).parent / "web-app" / "dist"
+legacy_web = Path(__file__).parent / "web"
+
+# 选择静态文件目录
+static_dir = nextjs_dist if nextjs_dist.exists() else legacy_web
+
+# 挂载 MCP 端点 (必须在静态文件之前，否则会被覆盖)
 app.mount("/mcp", mcp_app)
+
+# 挂载静态文件到根路径 (在所有 API 路由之后)
+# 注意：这个挂载放在文件末尾，确保 /api/* 路由优先匹配
+_static_dir = static_dir  # 保存引用供后面使用
 
 # 初始化客户端
 def get_client():
@@ -115,9 +124,12 @@ def get_client():
 
 # ========== API 路由 ==========
 
-@app.get("/", tags=["系统"])
+@app.get("/", tags=["系统"], include_in_schema=False)
 async def root():
-    """获取服务状态"""
+    """根路由：如果有前端构建，返回 index.html，否则返回 API 信息"""
+    index_file = _static_dir / "index.html"
+    if index_file.exists():
+        return FileResponse(str(index_file), media_type="text/html")
     return {
         "message": "TheBrain API & MCP Server is running",
         "mcp_endpoint": "/mcp/mcp",
@@ -477,7 +489,12 @@ async def srs_get_all_cards(authenticated: bool = Depends(verify_token)):
     return {"cards": cards, "count": len(cards)}
 
 
+# ========== 挂载静态前端 (必须在所有 API 路由之后) ==========
+# 这样 /api/* 路由会优先匹配，其他路径才会 fallback 到静态文件
+if _static_dir.exists():
+    app.mount("/", StaticFiles(directory=str(_static_dir), html=True), name="static")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
