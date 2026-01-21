@@ -4,8 +4,11 @@ import os
 from pathlib import Path
 from typing import Optional, Union, Dict, List, Any
 
-# 添加 scripts 目录到路径
-sys.path.append(str(Path(__file__).parent / "scripts"))
+# 添加项目根目录和 scripts 目录到路径（确保 Docker 环境下模块可导入）
+_project_root = Path(__file__).parent
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
+sys.path.append(str(_project_root / "scripts"))
 
 from fastmcp import FastMCP
 from fastmcp.server.auth.providers.debug import DebugTokenVerifier
