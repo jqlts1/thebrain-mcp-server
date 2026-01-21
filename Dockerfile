@@ -41,6 +41,7 @@ COPY --from=frontend-builder /app/web-app/dist ./web-app/dist
 EXPOSE 8000
 
 # 环境变量 (运行时通过 -e 或 docker-compose 传入)
+ENV PYTHONPATH="/app"
 ENV THEBRAIN_API_KEY=""
 ENV THEBRAIN_BRAIN_ID=""
 
