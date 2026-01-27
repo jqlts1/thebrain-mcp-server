@@ -164,8 +164,10 @@ class TheBrainClient:
         return self._enrich_with_type_names(graph)
 
     def create_thought(self, name: str, source_id: str = None,
-                       relation: int = 1, kind: int = 1) -> Dict:
+                       relation: int = 1, kind: int = 1, label: str = None) -> Dict:
         data = {"name": name, "kind": kind, "acType": 0}
+        if label:
+            data["label"] = label
         if source_id:
             data["sourceThoughtId"] = source_id
             data["relation"] = relation

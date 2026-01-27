@@ -56,6 +56,7 @@ class ThoughtCreateRequest(BaseModel):
     parent_id: Optional[str] = None
     jump_id: Optional[str] = None
     kind: int = 1  # 1=普通, 2=类型, 4=标签
+    label: Optional[str] = None
 
 class ThoughtUpdateRequest(BaseModel):
     name: Optional[str] = None
@@ -182,10 +183,10 @@ async def create_thought(request: ThoughtCreateRequest, authenticated: bool = De
     """创建新想法"""
     client = get_client()
     if request.parent_id:
-        return client.create_thought(request.name, request.parent_id, 1, request.kind)
+        return client.create_thought(request.name, request.parent_id, 1, request.kind, label=request.label)
     elif request.jump_id:
-        return client.create_thought(request.name, request.jump_id, 3, request.kind)
-    return client.create_thought(request.name, kind=request.kind)
+        return client.create_thought(request.name, request.jump_id, 3, request.kind, label=request.label)
+    return client.create_thought(request.name, kind=request.kind, label=request.label)
 
 @app.patch("/api/thoughts/{thought_id}", tags=["想法"])
 async def update_thought(thought_id: str, request: ThoughtUpdateRequest, authenticated: bool = Depends(verify_token)):

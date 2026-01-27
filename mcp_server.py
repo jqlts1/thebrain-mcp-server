@@ -99,6 +99,7 @@ def create_thought(
     parent_id: Optional[str] = None, 
     jump_id: Optional[str] = None, 
     kind: int = 1,
+    label: Optional[str] = None,
     sessionId: Optional[str] = None,
     action: Optional[str] = None,
     chatInput: Optional[str] = None,
@@ -111,12 +112,13 @@ def create_thought(
         parent_id: 父想法ID（可选）
         jump_id: 跳转连接的想法ID（可选）
         kind: 想法类型 - 1=普通, 2=类型, 4=标签
+        label: 想法标签（可选）
     """
     if parent_id:
-        return client.create_thought(name, parent_id, 1, kind)
+        return client.create_thought(name, parent_id, 1, kind, label=label)
     elif jump_id:
-        return client.create_thought(name, jump_id, 3, kind)
-    return client.create_thought(name, kind=kind)
+        return client.create_thought(name, jump_id, 3, kind, label=label)
+    return client.create_thought(name, kind=kind, label=label)
 
 @mcp.tool(exclude_args=N8N_COMPAT_ARGS)
 def update_thought(
