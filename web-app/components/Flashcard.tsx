@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardDetail } from '@/lib/api';
-import OutlineView from './OutlineView';
+import BrainGraph from './BrainGraph';
 
 interface FlashcardProps {
     card: Card;
@@ -38,7 +38,7 @@ export default function Flashcard({ card, detail, flipped, onFlip }: FlashcardPr
                     <div className="card-content">
                         <h2 className="card-title-small">{card.name}</h2>
 
-                        <OutlineView graph={detail?.graph} currentName={card.name} />
+                        <BrainGraph graph={detail?.graph} currentName={card.name} />
 
                         <div className="card-note">
                             <div className="note-label">📝 笔记</div>
