@@ -215,23 +215,28 @@ class TheBrainClient:
                        json={"markdown": content})
 
     def append_note(self, thought_id: str, content: str, position: str = "end") -> None:
-        """追加笔记内容
+        """追加笔记内容（自动添加分隔线）
         
         Args:
             thought_id: 想法ID
             content: 要追加的内容
             position: 插入位置，"end"(默认)追加到末尾，"start"插入到开头
         """
+        # 分隔符：换行 + 分割线 + 换行
+        separator = "\n\n---\n\n"
+        
         if position == "start":
             # 获取当前笔记并插入到开头
             current = self.get_note(thought_id, "markdown")
             current_text = current.get("markdown", "")
-            new_content = content + "\n\n" + current_text if current_text else content
+            # 内容 + 分隔符 + 原有内容
+            new_content = content + separator + current_text if current_text else content
             self.update_note(thought_id, new_content)
         else:
-            # 默认追加到末尾
+            # 默认追加到末尾：分隔符 + 内容
+            formatted_content = separator + content
             self._request("POST", f"/notes/{self.brain_id}/{thought_id}/append",
-                           json={"markdown": content})
+                           json={"markdown": formatted_content})
 
     def batch_replace_note(self, thought_id: str, replacements: List[List[str]]) -> Dict:
         """批量替换笔记内容
